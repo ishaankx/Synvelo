@@ -26,10 +26,14 @@ class AskRequest(BaseModel):
 
 
 def _parse(val):
-    if val is None:            return []
-    if isinstance(val, (list, dict)): return val
-    try:    return json.loads(val)
-    except: return []
+    if val is None:
+        return []
+    if isinstance(val, (list, dict)):
+        return val
+    try:
+        return json.loads(val)
+    except Exception:
+        return []
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -104,8 +108,10 @@ async def get_deal(deal_id: str, db: AsyncSession = Depends(get_db)):
 
     brief_data = None
     if r.brief:
-        try:    brief_data = json.loads(r.brief)
-        except: brief_data = None
+        try:
+            brief_data = json.loads(r.brief)
+        except Exception:
+            brief_data = None
 
     return {
         "id":                  str(r.id),

@@ -5,14 +5,12 @@ email blobs, OCR'd notes) into a clean analyst-grade PDF using GPT-4o + ReportLa
 """
 
 import json
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from openai import AsyncOpenAI
 from reportlab.lib.colors import HexColor, white
-from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch

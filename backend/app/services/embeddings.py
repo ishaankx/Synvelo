@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text

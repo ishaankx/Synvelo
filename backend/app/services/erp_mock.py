@@ -5,7 +5,7 @@ In production, these would be real SAP/Oracle/NetSuite API calls.
 import openai
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any
 from app.config import settings
 
 client = openai.AsyncOpenAI(api_key=settings.openai_api_key)

@@ -63,8 +63,10 @@ async def get_pipeline_summary(db: AsyncSession) -> dict:
     for r in at_risk_rows.fetchall():
         flags = r.risk_flags or []
         if isinstance(flags, str):
-            try:    flags = json.loads(flags)
-            except: flags = []
+            try:
+                flags = json.loads(flags)
+            except Exception:
+                flags = []
         at_risk_deals.append({
             "id":              str(r.id),
             "name":            r.name,
