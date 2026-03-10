@@ -9,6 +9,7 @@ from app.database import get_db
 from app.services.scoring import score_deal
 from app.services.rag import rag_answer
 from app.services.brief_service import generate_brief, generate_followup
+from app.dependencies import get_org_id
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -39,33 +40,44 @@ def _parse(val):
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
 @router.post("/")
-async def create_deal(body: DealCreate, db: AsyncSession = Depends(get_db)):
+async def create_deal(
+    body: DealCreate,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
     did = str(uuid.uuid4())
     await db.execute(text("""
         INSERT INTO deals (id, name, company, stage, value, owner,
-            risk_flags, signals, meddic, created_at)
+            risk_flags, signals, meddic, org_id, created_at)
         VALUES (CAST(:id AS uuid), :name, :company, :stage, :value, :owner,
-            '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, NOW())
+            '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, CAST(:org_id AS uuid), NOW())
     """), {
         "id": did, "name": body.name, "company": body.company,
         "stage": body.stage, "value": body.value, "owner": body.owner,
+        "org_id": org_id,
     })
     await db.commit()
     return {
         "id": did, "name": body.name, "company": body.company,
         "stage": body.stage, "value": body.value, "owner": body.owner,
+        "org_id": org_id,
     }
 
 
 @router.get("/")
-async def list_deals(db: AsyncSession = Depends(get_db)):
+async def list_deals(
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
     res = await db.execute(text("""
         SELECT id, name, company, stage, value, owner,
                win_probability, probability_low, probability_high,
                time_to_close_days, score_summary, risk_flags, signals,
                last_scored_at, created_at
-        FROM deals ORDER BY created_at DESC
-    """))
+        FROM deals
+        WHERE org_id = CAST(:org_id AS uuid)
+        ORDER BY created_at DESC
+    """), {"org_id": org_id})
     out = []
     for r in res.fetchall():
         signals      = _parse(r.signals)
@@ -94,14 +106,19 @@ async def list_deals(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{deal_id}")
-async def get_deal(deal_id: str, db: AsyncSession = Depends(get_db)):
+async def get_deal(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
     res = await db.execute(text("""
         SELECT id, name, company, stage, value, owner,
                win_probability, probability_low, probability_high,
                time_to_close_days, score_summary, risk_flags, signals,
                meddic, brief, brief_generated_at, last_scored_at, created_at
-        FROM deals WHERE id = CAST(:id AS uuid)
-    """), {"id": deal_id})
+        FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
     r = res.fetchone()
     if not r:
         raise HTTPException(status_code=404, detail="Deal not found")
@@ -135,10 +152,42 @@ async def get_deal(deal_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.delete("/{deal_id}")
+async def delete_deal(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    res = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
+    await db.execute(text("""
+        DELETE FROM deals WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    await db.commit()
+    return {"deleted": deal_id}
+
+
 # ── Actions ───────────────────────────────────────────────────────────────────
 
 @router.post("/{deal_id}/score")
-async def score(deal_id: str, db: AsyncSession = Depends(get_db)):
+async def score(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    # Verify ownership before scoring
+    res = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
     result = await score_deal(deal_id, db)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -146,12 +195,35 @@ async def score(deal_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{deal_id}/ask")
-async def ask(deal_id: str, req: AskRequest, db: AsyncSession = Depends(get_db)):
+async def ask(
+    deal_id: str,
+    req: AskRequest,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    res = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
     return await rag_answer(req.query, db, deal_id=deal_id)
 
 
 @router.post("/{deal_id}/brief")
-async def brief(deal_id: str, db: AsyncSession = Depends(get_db)):
+async def brief(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    res = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
     result = await generate_brief(deal_id, db)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -159,7 +231,18 @@ async def brief(deal_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{deal_id}/followup")
-async def followup(deal_id: str, db: AsyncSession = Depends(get_db)):
+async def followup(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    res = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
     result = await generate_followup(deal_id, db)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -167,7 +250,19 @@ async def followup(deal_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{deal_id}/score-history")
-async def score_history(deal_id: str, db: AsyncSession = Depends(get_db)):
+async def score_history(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    # Verify ownership
+    res = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not res.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
     res = await db.execute(text("""
         SELECT id, scored_at, win_probability, probability_low, probability_high,
                sentiment_avg, trigger_type, trigger_document

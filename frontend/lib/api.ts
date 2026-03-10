@@ -1,7 +1,14 @@
 import axios from 'axios'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-const api = axios.create({ baseURL: API_BASE })
+const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001'
+
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    'X-Org-ID': DEFAULT_ORG_ID,
+  },
+})
 
 export const dealsApi = {
   list:         ()                      => api.get('/deals/'),
@@ -53,11 +60,11 @@ export const analyticsApi = {
 }
 
 export const reportsApi = {
-  generate: (dealId: string) => api.post(`/reports/generate/${dealId}`),
-  listForDeal: (dealId: string) => api.get(`/reports/list/${dealId}`),
-  all:      () => api.get('/reports/all'),
-  download: (reportId: string) => api.get(`/reports/download/${reportId}`, { responseType: 'blob' }),
-  delete:   (reportId: string) => api.delete(`/reports/${reportId}`),
+  generate:    (dealId: string)   => api.post(`/reports/generate/${dealId}`),
+  listForDeal: (dealId: string)   => api.get(`/reports/list/${dealId}`),
+  all:         ()                 => api.get('/reports/all'),
+  download:    (reportId: string) => api.get(`/reports/download/${reportId}`, { responseType: 'blob' }),
+  delete:      (reportId: string) => api.delete(`/reports/${reportId}`),
 }
 
 export default api

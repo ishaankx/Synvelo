@@ -37,6 +37,7 @@ class Deal(Base):
     brief_generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     last_scored_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    org_id = mapped_column(String, nullable=False, index=True)
 
     documents: Mapped[List["Document"]] = relationship("Document", back_populates="deal", lazy="select")
     score_history: Mapped[List["ScoreHistory"]] = relationship("ScoreHistory", back_populates="deal", lazy="select")
@@ -56,6 +57,7 @@ class Document(Base):
     sentiment_score: Mapped[Optional[float]] = mapped_column(Float)
     sentiment_label: Mapped[Optional[str]] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    org_id = mapped_column(String, nullable=False, index=True)
 
     deal: Mapped["Deal"] = relationship("Deal", back_populates="documents")
 
@@ -87,6 +89,8 @@ class PulseAction(Base):
     decided_by: Mapped[Optional[str]] = mapped_column(String(200))
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    #V2 addition
+    org_id = mapped_column(String, nullable=False, index=True)
 
 
 # ── V2 New Models ──────────────────────────────────────────────────────────
@@ -127,6 +131,28 @@ class CallTranscription(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     deal: Mapped["Deal"] = relationship("Deal", back_populates="transcriptions")
+
+class Organisation(Base):
+    __tablename__ = "organisations"
+
+    id         = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name       = mapped_column(String, nullable=False)
+    slug       = mapped_column(String, nullable=False, unique=True)
+    plan       = mapped_column(String, nullable=False, default="free")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+class DealReport(Base):
+    __tablename__ = "deal_reports"
+
+    id          = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    deal_id     = mapped_column(String, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    org_id      = mapped_column(String, nullable=False, index=True)
+    title       = mapped_column(String(500))
+    page_count  = mapped_column(Integer, default=0)
+    pdf_path    = mapped_column(Text)
+    created_at  = mapped_column(DateTime, default=datetime.utcnow)
+
+    deal: Mapped["Deal"] = relationship("Deal", lazy="select")
 
 
 async def init_db():

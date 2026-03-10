@@ -4,6 +4,30 @@ from datetime import datetime
 
 # ─── Deal schemas ─────────────────────────────────────────
 
+class OrganisationCreate(BaseModel):
+    name: str
+    slug: str
+    plan: str = "free"
+
+
+class OrganisationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    plan: str
+    created_at: datetime
+
+
+class DealCreate(BaseModel):
+    name: str
+    company: str
+    owner: str
+    value: float
+    days_to_close: int
+    stage: str
+    # org_id is NOT in the create schema — it comes from the auth header, never from user input
+
+
 class DealCreate(BaseModel):
     name: str
     company: str = ""
