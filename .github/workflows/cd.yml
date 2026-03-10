@@ -1,0 +1,18 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deployment placeholder
+        run: |
+          echo "✅ Main branch updated — ready to deploy"
+          echo "Add your deployment step here (Railway / Render / VPS SSH)"
