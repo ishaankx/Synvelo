@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db, Organisation
-from app.schemas import OrganisationCreate, OrganisationResponse
+from app.models.schemas import OrganisationCreate, OrganisationResponse
 import uuid
 
 router = APIRouter(prefix="/organisations", tags=["organisations"])
