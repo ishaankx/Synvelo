@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
-from sqlalchemy import String, Float, Integer, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import String, Float, Integer, Text, DateTime, ForeignKey, JSON, UUID
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from typing import Optional, List
@@ -30,7 +30,6 @@ class Deal(Base):
     time_to_close_days: Mapped[Optional[int]] = mapped_column(Integer)
     score_summary: Mapped[Optional[str]] = mapped_column(Text)
     risk_flags: Mapped[Optional[list]] = mapped_column(JSON, default=list)
-    # V2 additions
     signals: Mapped[Optional[list]] = mapped_column(JSON, default=list)
     meddic: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
     brief: Mapped[Optional[str]] = mapped_column(Text)
@@ -53,7 +52,6 @@ class Document(Base):
     source_type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default="processing")
     content: Mapped[Optional[str]] = mapped_column(Text)
-    # V2 additions
     sentiment_score: Mapped[Optional[float]] = mapped_column(Float)
     sentiment_label: Mapped[Optional[str]] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -89,11 +87,7 @@ class PulseAction(Base):
     decided_by: Mapped[Optional[str]] = mapped_column(String(200))
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    #V2 addition
     org_id = mapped_column(String, nullable=False, index=True)
-
-
-# ── V2 New Models ──────────────────────────────────────────────────────────
 
 
 class ScoreHistory(Base):
@@ -132,25 +126,27 @@ class CallTranscription(Base):
 
     deal: Mapped["Deal"] = relationship("Deal", back_populates="transcriptions")
 
+
 class Organisation(Base):
     __tablename__ = "organisations"
 
-    id         = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id         = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     name       = mapped_column(String, nullable=False)
     slug       = mapped_column(String, nullable=False, unique=True)
     plan       = mapped_column(String, nullable=False, default="free")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
+
 class DealReport(Base):
     __tablename__ = "deal_reports"
 
-    id          = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    deal_id     = mapped_column(String, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
-    org_id      = mapped_column(String, nullable=False, index=True)
-    title       = mapped_column(String(500))
-    page_count  = mapped_column(Integer, default=0)
-    pdf_path    = mapped_column(Text)
-    created_at  = mapped_column(DateTime, default=datetime.utcnow)
+    id         = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    deal_id    = mapped_column(String, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    org_id     = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+    title      = mapped_column(String(500))
+    page_count = mapped_column(Integer, default=0)
+    pdf_path   = mapped_column(Text)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     deal: Mapped["Deal"] = relationship("Deal", lazy="select")
 

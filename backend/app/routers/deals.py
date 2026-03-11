@@ -15,11 +15,12 @@ router = APIRouter(prefix="/deals", tags=["deals"])
 
 
 class DealCreate(BaseModel):
-    name:    str
-    company: Optional[str] = ""
-    stage:   Optional[str] = "Qualification"
-    value:   Optional[float] = 0
-    owner:   Optional[str] = ""
+    name:               str
+    company:            Optional[str] = ""
+    stage:              Optional[str] = "Qualification"
+    value:              Optional[float] = 0.0
+    owner:              Optional[str] = ""
+    time_to_close_days: Optional[int] = None   # ← was missing
 
 
 class AskRequest(BaseModel):
@@ -48,19 +49,30 @@ async def create_deal(
     did = str(uuid.uuid4())
     await db.execute(text("""
         INSERT INTO deals (id, name, company, stage, value, owner,
-            risk_flags, signals, meddic, org_id, created_at)
+            time_to_close_days, risk_flags, signals, meddic, org_id, created_at)
         VALUES (CAST(:id AS uuid), :name, :company, :stage, :value, :owner,
-            '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, CAST(:org_id AS uuid), NOW())
+            :time_to_close_days, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb,
+            CAST(:org_id AS uuid), NOW())
     """), {
-        "id": did, "name": body.name, "company": body.company,
-        "stage": body.stage, "value": body.value, "owner": body.owner,
-        "org_id": org_id,
+        "id":                 did,
+        "name":               body.name,
+        "company":            body.company,
+        "stage":              body.stage,
+        "value":              body.value,
+        "owner":              body.owner,
+        "time_to_close_days": body.time_to_close_days,
+        "org_id":             org_id,
     })
     await db.commit()
     return {
-        "id": did, "name": body.name, "company": body.company,
-        "stage": body.stage, "value": body.value, "owner": body.owner,
-        "org_id": org_id,
+        "id":                 did,
+        "name":               body.name,
+        "company":            body.company,
+        "stage":              body.stage,
+        "value":              body.value,
+        "owner":              body.owner,
+        "time_to_close_days": body.time_to_close_days,
+        "org_id":             org_id,
     }
 
 
@@ -180,7 +192,6 @@ async def score(
     db: AsyncSession = Depends(get_db),
     org_id: str = Depends(get_org_id),
 ):
-    # Verify ownership before scoring
     res = await db.execute(text("""
         SELECT id FROM deals
         WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
@@ -255,7 +266,6 @@ async def score_history(
     db: AsyncSession = Depends(get_db),
     org_id: str = Depends(get_org_id),
 ):
-    # Verify ownership
     res = await db.execute(text("""
         SELECT id FROM deals
         WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)

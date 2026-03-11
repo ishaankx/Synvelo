@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, TrendingUp, DollarSign, Clock, Building2, Loader2, X } from 'lucide-react'
+import { Plus, TrendingUp, DollarSign, Clock, Building2, Loader2, X, Trash2, AlertTriangle } from 'lucide-react'
 import { dealsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +19,7 @@ interface Deal {
 }
 
 const STAGES = ['Discovery', 'Qualification', 'Demo', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost']
+const DELETE_PHRASE = 'Yes I want to delete this deal'
 
 function WinBar({ prob }: { prob: number | null }) {
   if (prob === null) return <div className="h-1 w-full bg-slate-800 rounded-full" />
@@ -48,6 +49,124 @@ function StageChip({ stage }: { stage: string }) {
   )
 }
 
+// ── GitHub-style Delete Confirmation Modal ─────────────────────────────────────
+
+function DeleteModal({
+  deal,
+  onClose,
+  onConfirm,
+  deleting,
+}: {
+  deal: Deal
+  onClose: () => void
+  onConfirm: () => void
+  deleting: boolean
+}) {
+  const [typed, setTyped] = useState('')
+  const confirmed = typed === DELETE_PHRASE
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-[#0d1117] border border-red-500/20 rounded-2xl w-full max-w-md shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <h2 className="text-[13px] font-semibold text-white">Delete deal</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-600 hover:text-slate-400 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          <p className="text-[12px] text-slate-400 leading-relaxed">
+            This action <span className="font-semibold text-white">cannot be undone</span>. This will permanently delete the deal{' '}
+            <span className="font-semibold text-white">"{deal.name}"</span>, along with all its documents, scores, and analysis history.
+          </p>
+
+          {/* Deal summary */}
+          <div className="bg-slate-900/60 border border-white/[0.05] rounded-xl px-4 py-3 space-y-1">
+            <p className="text-[11px] text-slate-500">
+              <span className="text-slate-400 font-medium">{deal.company}</span>
+              {' · '}{deal.stage}
+              {' · '}<span className="text-slate-400">${(deal.value || 0).toLocaleString()}</span>
+            </p>
+          </div>
+
+          {/* Typing confirmation */}
+          <div>
+            <label className="block text-[10px] text-slate-500 mb-1.5">
+              To confirm, type{' '}
+              <span className="font-mono text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
+                {DELETE_PHRASE}
+              </span>
+            </label>
+            <input
+              autoFocus
+              value={typed}
+              onChange={e => setTyped(e.target.value)}
+              placeholder={DELETE_PHRASE}
+              className={cn(
+                'w-full bg-slate-900/60 border rounded-xl px-3 py-2',
+                'text-[12px] text-white placeholder-slate-800',
+                'focus:outline-none transition-colors font-mono',
+                confirmed
+                  ? 'border-red-500/50 focus:border-red-500'
+                  : 'border-white/[0.06] focus:border-slate-500/50'
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 pb-5">
+          <button
+            onClick={onClose}
+            disabled={deleting}
+            className="flex-1 py-2 text-[11px] font-medium rounded-xl border border-white/[0.06]
+                       text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!confirmed || deleting}
+            className={cn(
+              'flex-1 py-2 text-[11px] font-semibold rounded-xl transition-colors',
+              'flex items-center justify-center gap-1.5',
+              confirmed && !deleting
+                ? 'bg-red-600 hover:bg-red-500 text-white cursor-pointer'
+                : 'bg-red-900/30 text-red-800 cursor-not-allowed'
+            )}
+          >
+            {deleting
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting…</>
+              : <><Trash2 className="w-3.5 h-3.5" /> Delete deal</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
+
 export default function DealsPage() {
   const router = useRouter()
   const [deals, setDeals] = useState<Deal[]>([])
@@ -59,10 +178,18 @@ export default function DealsPage() {
     value: '', owner: '', time_to_close_days: ''
   })
 
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<Deal | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
   const load = useCallback(async () => {
     try {
       const res = await dealsApi.list()
       setDeals(res.data || [])
+    } catch (err: any) {
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        setDeals([])
+      }
     } finally {
       setLoading(false)
     }
@@ -92,11 +219,26 @@ export default function DealsPage() {
     }
   }
 
-  // Pipeline stats
-  const totalValue = deals.reduce((s, d) => s + (d.value || 0), 0)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await dealsApi.delete(deleteTarget.id)
+      setDeals(prev => prev.filter(d => d.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Failed to delete deal')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const totalValue    = deals.reduce((s, d) => s + (d.value || 0), 0)
   const weightedValue = deals.reduce((s, d) => s + (d.value || 0) * (d.win_probability || 0), 0)
-  const scoredDeals = deals.filter(d => d.win_probability !== null)
-  const avgProb = scoredDeals.length ? scoredDeals.reduce((s, d) => s + d.win_probability!, 0) / scoredDeals.length : null
+  const scoredDeals   = deals.filter(d => d.win_probability !== null)
+  const avgProb       = scoredDeals.length
+    ? scoredDeals.reduce((s, d) => s + d.win_probability!, 0) / scoredDeals.length
+    : null
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -118,10 +260,10 @@ export default function DealsPage() {
       {/* Stats strip */}
       <div className="flex-shrink-0 border-b border-white/[0.05] px-6 py-3 flex gap-6">
         {[
-          { label: 'Total Pipeline',   val: `$${(totalValue / 1000).toFixed(0)}k` },
-          { label: 'Weighted',         val: `$${(weightedValue / 1000).toFixed(0)}k` },
-          { label: 'Avg Win Prob',     val: avgProb !== null ? `${Math.round(avgProb * 100)}%` : '—' },
-          { label: 'Deals',            val: String(deals.length) },
+          { label: 'Total Pipeline', val: `$${(totalValue / 1000).toFixed(0)}k` },
+          { label: 'Weighted',       val: `$${(weightedValue / 1000).toFixed(0)}k` },
+          { label: 'Avg Win Prob',   val: avgProb !== null ? `${Math.round(avgProb * 100)}%` : '—' },
+          { label: 'Deals',          val: String(deals.length) },
         ].map(({ label, val }) => (
           <div key={label}>
             <p className="text-[9px] text-slate-600 uppercase tracking-wider">{label}</p>
@@ -157,10 +299,26 @@ export default function DealsPage() {
                 <div key={deal.id}
                   onClick={() => router.push(`/deals/${deal.id}`)}
                   className="bg-[#0d1117] border border-white/[0.05] rounded-2xl p-4 cursor-pointer
-                             hover:border-white/[0.1] hover:bg-slate-900/60 transition-all group">
+                             hover:border-white/[0.1] hover:bg-slate-900/60 transition-all group relative">
+
+                  {/* Delete button — visible on hover, top-right corner */}
+                  <button
+                    onClick={e => {
+                      e.stopPropagation() // prevent navigating to deal
+                      setDeleteTarget(deal)
+                    }}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100
+                               w-6 h-6 rounded-lg flex items-center justify-center
+                               text-slate-700 hover:text-red-400 hover:bg-red-500/10
+                               transition-all duration-150 z-10"
+                    title="Delete deal"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div className="min-w-0">
-                      <h3 className="text-[13px] font-medium text-white truncate group-hover:text-indigo-300 transition-colors">
+                      <h3 className="text-[13px] font-medium text-white truncate group-hover:text-indigo-300 transition-colors pr-6">
                         {deal.name}
                       </h3>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -170,14 +328,16 @@ export default function DealsPage() {
                         <p className="text-[10px] text-slate-600">{deal.owner || '—'}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 pr-6">
                       <StageChip stage={deal.stage} />
                       <span className={cn('text-[13px] font-bold', pctColor)}>
                         {pct !== null ? `${pct}%` : '—'}
                       </span>
                     </div>
                   </div>
+
                   <WinBar prob={deal.win_probability} />
+
                   <div className="flex items-center justify-between mt-2.5">
                     <div className="flex items-center gap-1.5">
                       <DollarSign className="w-2.5 h-2.5 text-slate-700" />
@@ -218,10 +378,10 @@ export default function DealsPage() {
             </div>
             <div className="p-5 space-y-3">
               {[
-                { label: 'Deal Name *', key: 'name', placeholder: 'e.g. NovaTech ERP Integration' },
-                { label: 'Company *',   key: 'company', placeholder: 'e.g. NovaTech Manufacturing' },
-                { label: 'Owner',       key: 'owner', placeholder: 'e.g. John Smith' },
-                { label: 'Deal Value ($)', key: 'value', placeholder: 'e.g. 185000' },
+                { label: 'Deal Name *',        key: 'name',               placeholder: 'e.g. NovaTech ERP Integration' },
+                { label: 'Company *',          key: 'company',            placeholder: 'e.g. NovaTech Manufacturing' },
+                { label: 'Owner',              key: 'owner',              placeholder: 'e.g. John Smith' },
+                { label: 'Deal Value ($)',      key: 'value',              placeholder: 'e.g. 185000' },
                 { label: 'Est. Days to Close', key: 'time_to_close_days', placeholder: 'e.g. 45' },
               ].map(({ label, key, placeholder }) => (
                 <div key={key}>
@@ -259,6 +419,16 @@ export default function DealsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <DeleteModal
+          deal={deleteTarget}
+          onClose={() => !deleting && setDeleteTarget(null)}
+          onConfirm={handleDelete}
+          deleting={deleting}
+        />
       )}
     </div>
   )

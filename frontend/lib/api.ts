@@ -1,6 +1,7 @@
 import axios from 'axios'
+import { supabase } from '@/lib/supabase'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+const API_BASE       = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001'
 
 const api = axios.create({
@@ -10,11 +11,44 @@ const api = axios.create({
   },
 })
 
+// Interceptor: attach Supabase JWT on every request if user is logged in
+api.interceptors.request.use(async (config) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      config.headers['Authorization'] = `Bearer ${session.access_token}`
+      delete config.headers['X-Org-ID']
+    }
+  } catch {
+    // No session — header fallback stays in place
+  }
+  return config
+})
+
+// 401 → auto sign-out
+api.interceptors.response.use(
+  r => r,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const dealsApi = {
   list:         ()                      => api.get('/deals/'),
   get:          (id: string)            => api.get(`/deals/${id}`),
-  create:       (d: { name: string; company: string; stage: string; value: number; owner: string }) =>
-                  api.post('/deals/', d),
+  create:       (d: {
+    name: string
+    company: string
+    stage: string
+    value: number
+    owner: string
+    time_to_close_days?: number | null
+  }) => api.post('/deals/', d),
+  delete:       (id: string)            => api.delete(`/deals/${id}`),   // ← added
   score:        (id: string)            => api.post(`/deals/${id}/score`),
   ask:          (id: string, q: string) => api.post(`/deals/${id}/ask`, { query: q }),
   brief:        (id: string)            => api.post(`/deals/${id}/brief`),
