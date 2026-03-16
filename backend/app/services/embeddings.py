@@ -164,11 +164,11 @@ async def ingest_file(
     if row and row.win_probability is not None:
         await db.execute(text("""
             INSERT INTO score_history
-                (deal_id, win_probability, probability_low, probability_high,
-                 sentiment_avg, trigger_type, trigger_document)
+                (id, deal_id, win_probability, probability_low, probability_high,
+                 sentiment_avg, trigger_type, trigger_document, scored_at)
             VALUES
-                (CAST(:id AS uuid), :prob, :low, :high, :sent,
-                 'document_ingested', :doc)
+                (gen_random_uuid(), CAST(:id AS uuid), :prob, :low, :high, :sent,
+                 'document_ingested', :doc, NOW())
         """), {
             "id":   deal_id,
             "prob": row.win_probability,

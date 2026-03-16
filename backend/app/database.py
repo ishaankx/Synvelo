@@ -7,7 +7,14 @@ from typing import Optional, List
 import uuid
 from app.config import settings
 
-engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.database_url,
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_recycle=settings.db_pool_recycle,
+)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
@@ -143,9 +150,9 @@ class DealReport(Base):
     id         = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     deal_id    = mapped_column(String, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
     org_id     = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
-    title      = mapped_column(String(500))
+    filename   = mapped_column(String(500))
     page_count = mapped_column(Integer, default=0)
-    pdf_path   = mapped_column(Text)
+    report_json = mapped_column(JSON)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     deal: Mapped["Deal"] = relationship("Deal", lazy="select")

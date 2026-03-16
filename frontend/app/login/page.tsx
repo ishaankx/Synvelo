@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Loader2, LayoutDashboard, CheckCircle } from 'lucide-react'
+import { Loader2, CheckCircle } from 'lucide-react'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -72,44 +73,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070b12] flex items-center justify-center p-4">
+    <div className="min-h-screen syn-bg flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
 
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-[18px] font-bold text-white">Synvelo</span>
+          <Image src="/SynveloLogo_v1.png" alt="Synvelo" width={36} height={36} className="rounded-lg" />
+          <span className="text-[18px] font-bold text-gray-900">Synvelo</span>
         </div>
 
-        <div className="bg-[#0d1117] border border-white/[0.07] rounded-2xl p-7 shadow-2xl">
-          <h1 className="text-[15px] font-semibold text-white mb-1">
+        <div className="syn-surface border syn-border rounded-xl p-7 shadow-2xl">
+          <h1 className="text-[16px] font-semibold text-gray-900 mb-1">
             {mode === 'login' ? 'Sign in to Synvelo' : 'Create your account'}
           </h1>
-          <p className="text-[11px] text-slate-600 mb-6">
+          <p className="text-[12px] text-gray-500 mb-6">
             {mode === 'login' ? 'Revenue execution intelligence platform' : 'Start your free account'}
           </p>
 
           <div className="space-y-3">
             {mode === 'signup' && (
               <div>
-                <label className="block text-[10px] text-slate-600 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] text-gray-500 uppercase tracking-wider mb-1.5 font-medium">
                   Company / Org Name
                 </label>
                 <input
                   value={orgName}
                   onChange={e => setOrgName(e.target.value)}
                   placeholder="e.g. Acme Sales Team"
-                  className="w-full bg-slate-900/60 border border-white/[0.06] rounded-xl px-3 py-2.5
-                             text-[12px] text-white placeholder-slate-700
-                             focus:outline-none focus:border-indigo-500/50 transition-colors"
+                  className="w-full syn-surface-2 border syn-border rounded-lg px-3.5 py-2.5
+                             text-[13px] text-gray-900 placeholder-gray-400
+                             focus:outline-none focus:border-brand-500/50 transition-colors"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-[10px] text-slate-600 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] text-gray-500 uppercase tracking-wider mb-1.5 font-medium">
                 Email
               </label>
               <input
@@ -117,14 +116,14 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="w-full bg-slate-900/60 border border-white/[0.06] rounded-xl px-3 py-2.5
-                           text-[12px] text-white placeholder-slate-700
-                           focus:outline-none focus:border-indigo-500/50 transition-colors"
+                className="w-full syn-surface-2 border syn-border rounded-lg px-3.5 py-2.5
+                           text-[13px] text-gray-900 placeholder-gray-400
+                           focus:outline-none focus:border-brand-500/50 transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-[10px] text-slate-600 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] text-gray-500 uppercase tracking-wider mb-1.5 font-medium">
                 Password
               </label>
               <input
@@ -133,31 +132,31 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                className="w-full bg-slate-900/60 border border-white/[0.06] rounded-xl px-3 py-2.5
-                           text-[12px] text-white placeholder-slate-700
-                           focus:outline-none focus:border-indigo-500/50 transition-colors"
+                className="w-full syn-surface-2 border syn-border rounded-lg px-3.5 py-2.5
+                           text-[13px] text-gray-900 placeholder-gray-400
+                           focus:outline-none focus:border-brand-500/50 transition-colors"
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-[11px] text-red-400 mt-3 bg-red-950/30 border border-red-500/20 rounded-lg px-3 py-2">
+            <p className="text-[12px] text-red-600 mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
 
           {success && (
-            <div className="flex items-start gap-2 mt-3 bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-2">
-              <CheckCircle className="w-3.5 h-3.5 text-green-400 mt-0.5 flex-shrink-0" />
-              <p className="text-[11px] text-green-400">{success}</p>
+            <div className="flex items-start gap-2 mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <CheckCircle className="w-3.5 h-3.5 text-positive mt-0.5 flex-shrink-0" />
+              <p className="text-[12px] text-positive">{success}</p>
             </div>
           )}
 
           <button
             onClick={handleSubmit}
             disabled={loading || !email || !password || (mode === 'signup' && !orgName)}
-            className="w-full mt-5 py-2.5 text-[12px] font-semibold rounded-xl
-                       bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50
+            className="w-full mt-5 py-2.5 text-[13px] font-semibold rounded-lg
+                       bg-brand-600 hover:bg-brand-500 disabled:opacity-50
                        text-white transition-colors flex items-center justify-center gap-2"
           >
             {loading
@@ -166,11 +165,11 @@ export default function LoginPage() {
             }
           </button>
 
-          <p className="text-center text-[11px] text-slate-600 mt-4">
+          <p className="text-center text-[12px] text-gray-500 mt-4">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
             <button
               onClick={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setError(null); setSuccess(null) }}
-              className="text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="text-brand-600 hover:text-brand-500 transition-colors font-medium"
             >
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>

@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.services.report_service import generate_report, REPORTS_DIR
 from app.database import get_db, DealReport, Deal
 from app.dependencies import get_org_id
+from app.rate_limit import limiter, AI_RATE, track_ai_usage
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
 @router.post("/generate/{deal_id}")
+@limiter.limit(AI_RATE)
 async def create_report(
+    request: Request,
     deal_id: str,
     db: AsyncSession = Depends(get_db),
     org_id: str = Depends(get_org_id),
@@ -23,6 +26,7 @@ async def create_report(
     if not res.fetchone():
         raise HTTPException(status_code=404, detail="Deal not found")
 
+    await track_ai_usage(org_id, "report")
     result = await generate_report(deal_id, db, org_id)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -93,7 +97,9 @@ async def download_report(
     if not row:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    file_path = REPORTS_DIR / row.filename
+    file_path = (REPORTS_DIR / row.filename).resolve()
+    if not file_path.is_relative_to(REPORTS_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid report path")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Report file not found on disk")
 
@@ -127,7 +133,9 @@ async def delete_report(
         raise HTTPException(status_code=404, detail="Report not found")
 
     try:
-        (REPORTS_DIR / row.filename).unlink(missing_ok=True)
+        del_path = (REPORTS_DIR / row.filename).resolve()
+        if del_path.is_relative_to(REPORTS_DIR.resolve()):
+            del_path.unlink(missing_ok=True)
     except Exception:
         pass
 

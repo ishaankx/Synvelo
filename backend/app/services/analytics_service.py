@@ -99,6 +99,90 @@ async def get_pipeline_summary(db: AsyncSession, org_id: str) -> dict:
         "trigger_document": r.trigger_document,
     } for r in recent.fetchall()]
 
+    # ── Signal overview (per-deal signal counts) ───────────────────────
+    sig_rows = await db.execute(text("""
+        SELECT id, name, company, stage, value, win_probability, signals
+        FROM deals
+        WHERE org_id = CAST(:org_id AS uuid) AND signals IS NOT NULL
+        ORDER BY value DESC NULLS LAST
+        LIMIT 20
+    """), {"org_id": org_id})
+    signal_overview = []
+    for r in sig_rows.fetchall():
+        sigs = r.signals or []
+        if isinstance(sigs, str):
+            try:
+                sigs = json.loads(sigs)
+            except Exception:
+                sigs = []
+        if not sigs:
+            continue
+        red    = sum(1 for s in sigs if isinstance(s, dict) and s.get("color") == "red")
+        yellow = sum(1 for s in sigs if isinstance(s, dict) and s.get("color") == "yellow")
+        green  = sum(1 for s in sigs if isinstance(s, dict) and s.get("color") == "green")
+        signal_overview.append({
+            "id":              str(r.id),
+            "name":            r.name,
+            "company":         r.company or "",
+            "stage":           r.stage or "",
+            "value":           float(r.value or 0),
+            "win_probability": r.win_probability,
+            "red":             red,
+            "yellow":          yellow,
+            "green":           green,
+            "total":           red + yellow + green,
+        })
+    # Sort by red signals first, then yellow
+    signal_overview.sort(key=lambda x: (-x["red"], -x["yellow"]))
+
+    # ── By owner ────────────────────────────────────────────────────────
+    owner_rows = await db.execute(text("""
+        SELECT
+            COALESCE(NULLIF(owner, ''), 'Unassigned') AS owner_name,
+            COUNT(*)                                   AS deal_count,
+            COALESCE(SUM(value), 0)                   AS total_value,
+            COALESCE(AVG(win_probability) * 100, 0)   AS avg_prob,
+            COUNT(CASE WHEN stage = 'Closed Won'  THEN 1 END) AS won,
+            COUNT(CASE WHEN stage = 'Closed Lost' THEN 1 END) AS lost
+        FROM deals
+        WHERE org_id = CAST(:org_id AS uuid)
+        GROUP BY owner_name
+        ORDER BY total_value DESC
+    """), {"org_id": org_id})
+    by_owner = []
+    for r in owner_rows.fetchall():
+        closed = r.won + r.lost
+        by_owner.append({
+            "owner":      r.owner_name,
+            "deal_count": r.deal_count,
+            "value":      float(r.total_value),
+            "avg_prob":   round(float(r.avg_prob), 1),
+            "won":        r.won,
+            "lost":       r.lost,
+            "win_rate":   round(r.won / closed * 100, 1) if closed > 0 else None,
+        })
+
+    # ── Stage funnel (ordered by pipeline progression) ──────────────────
+    STAGE_ORDER = [
+        "Discovery", "Qualification", "Demo", "Proposal",
+        "Negotiation", "Closed Won", "Closed Lost",
+    ]
+    stage_map = {s["stage"]: s for s in stages}
+    stage_funnel = []
+    prev_count = None
+    for stage_name in STAGE_ORDER:
+        entry = stage_map.get(stage_name)
+        count = entry["count"] if entry else 0
+        conversion = round(count / prev_count * 100, 1) if prev_count and prev_count > 0 else None
+        stage_funnel.append({
+            "stage":           stage_name,
+            "count":           count,
+            "value":           float(entry["value"]) if entry else 0.0,
+            "conversion_rate": conversion,
+        })
+        if stage_name not in ("Closed Won", "Closed Lost"):
+            prev_count = count if count > 0 else prev_count
+
     return {
         "total_deals":                  t.total_deals,
         "total_pipeline_value":         float(t.total_value),
@@ -108,7 +192,10 @@ async def get_pipeline_summary(db: AsyncSession, org_id: str) -> dict:
         "at_risk_count":                t.at_risk_count,
         "unscored_count":               t.unscored_count,
         "by_stage":                     stages,
+        "stage_funnel":                 stage_funnel,
         "win_probability_distribution": distribution,
         "at_risk_deals":                at_risk_deals,
         "recent_activity":              activity,
+        "signal_overview":              signal_overview,
+        "by_owner":                     by_owner,
     }

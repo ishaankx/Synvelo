@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
-import { Inter, Geist } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 import Sidebar from '@/components/Sidebar'
 import AuthGuard from '@/components/AuthGuard'
-import { cn } from '@/lib/utils'
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Synvelo — Revenue Execution Intelligence',
@@ -15,12 +17,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn('dark', 'font-sans', geist.variable)}>
-      <body className={`${inter.className} bg-[#070b12] text-gray-100 min-h-screen`}>
+    <html lang="en">
+      <body className={`${inter.variable} font-sans syn-bg text-gray-900 min-h-screen antialiased`}>
         <AuthGuard>
           <div className="flex h-screen overflow-hidden">
             <Sidebar />
-            <main className="flex-1 overflow-auto bg-[#070b12]">
+            <main className="flex-1 overflow-auto syn-bg syn-scroll">
               {children}
             </main>
           </div>

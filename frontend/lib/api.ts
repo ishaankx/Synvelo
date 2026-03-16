@@ -53,7 +53,8 @@ export const dealsApi = {
   ask:          (id: string, q: string) => api.post(`/deals/${id}/ask`, { query: q }),
   brief:        (id: string)            => api.post(`/deals/${id}/brief`),
   followup:     (id: string)            => api.post(`/deals/${id}/followup`),
-  scoreHistory: (id: string)            => api.get(`/deals/${id}/score-history`),
+  scoreHistory:      (id: string) => api.get(`/deals/${id}/score-history`),
+  sentimentTimeline: (id: string) => api.get(`/deals/${id}/sentiment-timeline`),
 }
 
 export const ingestApi = {

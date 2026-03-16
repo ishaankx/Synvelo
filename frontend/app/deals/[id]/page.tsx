@@ -16,6 +16,7 @@ import DealHealthTimeline, { HistoryPoint } from '@/components/DealHealthTimelin
 import DealBriefModal, { BriefData } from '@/components/DealBriefModal'
 import FollowupModal, { FollowupData } from '@/components/FollowupModal'
 import CallCaptureZone from '@/components/CallCaptureZone'
+import SentimentTimeline from '@/components/SentimentTimeline'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -66,9 +67,9 @@ function ScoreGauge({ prob, low, high }: { prob: number; low: number; high: numb
   const angle = -135 + (pct / 100) * 270
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-32 h-[72px] overflow-hidden">
+      <div className="relative w-36 h-20 overflow-hidden">
         <svg viewBox="0 0 128 72" className="w-full h-full">
-          <path d="M12 68 A52 52 0 1 1 116 68" fill="none" stroke="#111827" strokeWidth="9" strokeLinecap="round" />
+          <path d="M12 68 A52 52 0 1 1 116 68" fill="none" stroke="#E5E7EB" strokeWidth="9" strokeLinecap="round" />
           <path d="M12 68 A52 52 0 1 1 116 68" fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
             strokeDasharray={`${pct * 1.634} 163.4`} style={{ transition: 'stroke-dasharray 0.8s ease' }} />
           <g transform={`rotate(${angle} 64 68)`}>
@@ -77,10 +78,10 @@ function ScoreGauge({ prob, low, high }: { prob: number; low: number; high: numb
           </g>
         </svg>
       </div>
-      <p className="text-3xl font-black text-white -mt-1.5">
-        {pct}<span className="text-lg text-slate-500">%</span>
+      <p className="text-4xl font-black syn-text-primary -mt-1">
+        {pct}<span className="text-lg syn-text-muted">%</span>
       </p>
-      <p className="text-[9px] text-slate-600 mt-0.5">
+      <p className="text-[11px] syn-text-tertiary mt-0.5">
         {Math.round(low * 100)}%–{Math.round(high * 100)}% CI
       </p>
     </div>
@@ -93,10 +94,10 @@ function SentBadge({ score, label }: { score: number | null; label: string | nul
   const isNeg = score <= -0.1
   return (
     <span className={cn(
-      'text-[9px] font-semibold px-1.5 py-0.5 rounded-full border',
-      isPos ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-       : isNeg ? 'bg-red-500/10 text-red-400 border-red-500/20'
-       : 'bg-slate-800/60 text-slate-500 border-white/[0.05]'
+      'text-[11px] font-semibold px-1.5 py-0.5 rounded-full border',
+      isPos ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+       : isNeg ? 'bg-red-50 text-red-600 border-red-200'
+       : 'bg-gray-100 text-gray-500 border-gray-200'
     )}>
       {isPos ? '▲' : isNeg ? '▼' : '–'} {label || 'neutral'}
     </span>
@@ -112,10 +113,10 @@ function TabBtn({ active, onClick, children }: {
   return (
     <button onClick={onClick}
       className={cn(
-        'px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all',
+        'px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all',
         active
-          ? 'bg-indigo-500/[0.12] text-indigo-300 border border-indigo-500/20'
-          : 'text-slate-500 hover:text-slate-300 border border-transparent',
+          ? 'bg-brand-50 text-brand-700'
+          : 'syn-text-tertiary hover:text-gray-700',
       )}>
       {children}
     </button>
@@ -149,7 +150,7 @@ export default function DealDetailPage() {
   const [qaLoading, setQaLoading] = useState(false)
 
   const load = useCallback(async () => {
-    if (!id || id === 'undefined') return   
+    if (!id || id === 'undefined') return
     const [dr, docsR, histR] = await Promise.all([
       dealsApi.get(id),
       ingestApi.documents(id),
@@ -208,50 +209,50 @@ export default function DealDetailPage() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
   if (!deal) return (
-    <div className="flex-1 flex items-center justify-center h-screen">
-      <Loader2 className="w-6 h-6 text-slate-600 animate-spin" />
+    <div className="flex-1 flex items-center justify-center h-screen syn-bg">
+      <Loader2 className="w-6 h-6 syn-text-muted animate-spin" />
     </div>
   )
 
   const pct = deal.win_probability !== null ? Math.round(deal.win_probability * 100) : null
-  const scoreColor = pct === null ? 'text-slate-600' : pct >= 65 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+  const scoreColor = pct === null ? 'syn-text-muted' : pct >= 65 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-600' : 'text-red-600'
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen syn-bg">
 
       {/* ── Top bar ──────────────────────────────────────────────── */}
-      <div className="h-[58px] border-b border-white/[0.06] px-5 flex items-center justify-between flex-shrink-0">
+      <div className="h-16 border-b syn-border px-5 flex items-center justify-between flex-shrink-0 syn-surface">
         <div className="flex items-center gap-3">
           <Link href="/deals"
-            className="w-7 h-7 rounded-lg bg-slate-800/60 border border-white/[0.06]
-                       flex items-center justify-center hover:bg-slate-700/60 transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+            className="w-8 h-8 rounded-lg syn-surface-2 border syn-border
+                       flex items-center justify-center hover:border-gray-300 transition-colors">
+            <ArrowLeft className="w-4 h-4 syn-text-tertiary" />
           </Link>
           <div>
-            <h1 className="text-[13px] font-semibold text-white leading-none">{deal.name}</h1>
-            <p className="text-[10px] text-slate-600 mt-0.5">{deal.company} · {deal.stage}</p>
+            <h1 className="text-base font-semibold syn-text-primary leading-none">{deal.name}</h1>
+            <p className="text-[12px] syn-text-secondary mt-1">{deal.company} · {deal.stage}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setShowFollowup(true); if (!followupData) handleFollowup() }}
-            className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-xl
-                       bg-slate-800/60 border border-white/[0.06] text-slate-400
-                       hover:text-slate-200 hover:border-white/[0.1] transition-colors">
+            className="flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg
+                       syn-surface-2 border syn-border text-gray-700
+                       hover:text-gray-900 hover:border-gray-300 transition-colors">
             <Mail className="w-3.5 h-3.5" /> Follow-up
           </button>
           <button
             onClick={() => setShowBrief(true)}
-            className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-xl
-                       bg-amber-500/10 border border-amber-500/20 text-amber-400
-                       hover:bg-amber-500/[0.15] transition-colors">
+            className="flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg
+                       syn-surface-2 border syn-border text-brand-700
+                       hover:border-brand-500/30 transition-colors">
             <FileText className="w-3.5 h-3.5" /> Brief
           </button>
           <button
             onClick={handleScore}
             disabled={scoring}
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl
-                       bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white transition-colors">
+            className="flex items-center gap-1.5 text-[12px] font-medium px-4 py-2 rounded-lg
+                       bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white transition-colors">
             {scoring
               ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring…</>
               : <><RefreshCw className="w-3.5 h-3.5" /> Score Deal</>
@@ -263,70 +264,74 @@ export default function DealDetailPage() {
       {/* ── Body ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden flex min-h-0">
 
-        {/* LEFT ─ 400px */}
-        <div className="w-[400px] border-r border-white/[0.06] flex flex-col flex-shrink-0">
+        {/* LEFT — 400px */}
+        <div className="w-[400px] border-r syn-border flex flex-col flex-shrink-0">
 
           {/* Score card */}
-          <div className="p-5 border-b border-white/[0.06]">
-            <div className="flex items-start gap-4">
-              {pct !== null
-                ? <ScoreGauge prob={deal.win_probability!} low={deal.probability_low!} high={deal.probability_high!} />
-                : <div className="w-32 h-[72px] flex items-center justify-center bg-slate-900/40 rounded-xl border border-white/[0.04]">
-                    <p className="text-[9px] text-slate-600">Not scored</p>
-                  </div>
-              }
-              <div className="flex-1 grid grid-cols-2 gap-2">
-                {[
-                  { icon: DollarSign, label: 'Value',     val: `$${(deal.value || 0).toLocaleString()}` },
-                  { icon: Clock,      label: 'Est. Close', val: deal.time_to_close_days ? `${deal.time_to_close_days}d` : '—' },
-                  { icon: Building2,  label: 'Company',   val: deal.company || '—' },
-                  { icon: CheckCircle2,label:'Owner',      val: deal.owner || '—' },
-                ].map(({ icon: Icon, label, val }) => (
-                  <div key={label} className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-2">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Icon className="w-2.5 h-2.5 text-slate-700" />
-                      <p className="text-[8px] text-slate-600 uppercase tracking-wider">{label}</p>
+          <div className="p-5 border-b syn-border">
+            <div className="syn-card p-4">
+              <div className="flex items-start gap-5">
+                {pct !== null
+                  ? <ScoreGauge prob={deal.win_probability!} low={deal.probability_low!} high={deal.probability_high!} />
+                  : <div className="w-36 h-20 flex items-center justify-center syn-surface-2 rounded-xl border syn-border">
+                      <p className="text-[11px] syn-text-muted">Not scored</p>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-300 truncate">{val}</p>
-                  </div>
-                ))}
+                }
+                <div className="flex-1 grid grid-cols-2 gap-2">
+                  {[
+                    { icon: DollarSign,  label: 'Value',      val: `$${(deal.value || 0).toLocaleString()}` },
+                    { icon: Clock,       label: 'Est. Close', val: deal.time_to_close_days ? `${deal.time_to_close_days}d` : '—' },
+                    { icon: Building2,   label: 'Company',    val: deal.company || '—' },
+                    { icon: CheckCircle2, label: 'Owner',     val: deal.owner || '—' },
+                  ].map(({ icon: Icon, label, val }) => (
+                    <div key={label} className="syn-surface-2 border syn-border rounded-xl p-2.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Icon className="w-3 h-3 syn-text-muted" />
+                        <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">{label}</p>
+                      </div>
+                      <p className="text-[13px] font-medium text-gray-800 truncate">{val}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+
+            {/* AI Assessment */}
             {deal.score_summary && (
-              <div className="mt-3 bg-slate-900/30 border border-white/[0.04] rounded-xl p-3">
-                <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">AI Assessment</p>
-                <p className="text-[11.5px] text-slate-300 leading-relaxed">{deal.score_summary}</p>
+              <div className="mt-3 syn-surface-2 border syn-border rounded-xl p-3.5">
+                <p className="text-[11px] text-brand-700 uppercase tracking-wider font-semibold mb-1.5">AI Assessment</p>
+                <p className="text-[13px] text-gray-700 leading-relaxed">{deal.score_summary}</p>
               </div>
             )}
           </div>
 
           {/* Tabs */}
-          <div className="px-3 py-2.5 border-b border-white/[0.06] flex gap-1 flex-shrink-0 flex-wrap">
+          <div className="px-3 py-2.5 border-b syn-border flex gap-1 flex-shrink-0 flex-wrap">
             {([
               ['overview',  'Overview'],
               ['meddic',    'MEDDIC'],
               ['timeline',  'Timeline'],
               ['documents', 'Documents'],
-              ['capture',   '🎙 Calls'],
+              ['capture',   'Calls'],
             ] as const).map(([t, label]) => (
               <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>{label}</TabBtn>
             ))}
           </div>
 
           {/* Tab body */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto syn-scroll p-4">
 
             {/* Overview */}
             {tab === 'overview' && (
               <div className="space-y-4">
                 {deal.risk_flags?.length > 0 && (
                   <div>
-                    <p className="text-[9px] font-semibold text-slate-600 uppercase tracking-[0.1em] mb-2">Risk Flags</p>
+                    <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Risk Flags</p>
                     <div className="space-y-1.5">
                       {deal.risk_flags.map((r, i) => (
-                        <div key={i} className="flex items-start gap-2 bg-red-950/20 border border-red-500/15 rounded-xl p-2.5">
-                          <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />
-                          <p className="text-[11px] text-slate-400 leading-relaxed">{r}</p>
+                        <div key={i} className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl p-3">
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-[12px] syn-text-secondary leading-relaxed">{r}</p>
                         </div>
                       ))}
                     </div>
@@ -334,25 +339,25 @@ export default function DealDetailPage() {
                 )}
                 {evidence.length > 0 && (
                   <div>
-                    <p className="text-[9px] font-semibold text-slate-600 uppercase tracking-[0.1em] mb-2">Evidence</p>
+                    <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Evidence</p>
                     <div className="space-y-2">
                       {evidence.map((e, i) => (
                         <div key={i} className={cn(
                           'rounded-xl border p-3',
                           e.type === 'positive'
-                            ? 'bg-emerald-950/20 border-emerald-500/15'
-                            : 'bg-red-950/20 border-red-500/15'
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : 'bg-red-50 border-red-200'
                         )}>
                           <div className="flex justify-between mb-1.5">
                             <span className={cn(
-                              'text-[9px] font-bold uppercase tracking-wider',
-                              e.type === 'positive' ? 'text-emerald-400' : 'text-red-400'
+                              'text-[11px] font-bold uppercase tracking-wider',
+                              e.type === 'positive' ? 'text-emerald-600' : 'text-red-600'
                             )}>
                               {e.type === 'positive' ? '▲' : '▼'} {e.impact > 0 ? '+' : ''}{Math.round(e.impact * 100)}pp
                             </span>
-                            <span className="text-[9px] text-slate-700">{e.filename}</span>
+                            <span className="text-[11px] syn-text-muted">{e.filename}</span>
                           </div>
-                          <p className="text-[11px] text-slate-400 italic leading-relaxed">&ldquo;{e.excerpt}&rdquo;</p>
+                          <p className="text-[12px] syn-text-secondary italic leading-relaxed">&ldquo;{e.excerpt}&rdquo;</p>
                         </div>
                       ))}
                     </div>
@@ -360,7 +365,7 @@ export default function DealDetailPage() {
                 )}
                 {!evidence.length && !deal.risk_flags?.length && (
                   <div className="text-center py-10">
-                    <p className="text-[11px] text-slate-700">Upload documents then score the deal to see evidence.</p>
+                    <p className="text-[12px] syn-text-muted">Upload documents then score the deal to see evidence.</p>
                   </div>
                 )}
               </div>
@@ -372,45 +377,52 @@ export default function DealDetailPage() {
             )}
 
             {/* Timeline */}
-            {tab === 'timeline' && <DealHealthTimeline history={history} />}
+            {tab === 'timeline' && (
+              <div className="space-y-6">
+                <DealHealthTimeline history={history} />
+                <SentimentTimeline dealId={id} />
+              </div>
+            )}
 
             {/* Documents */}
             {tab === 'documents' && (
               <div className="space-y-3">
                 <div {...getRootProps()}
                   className={cn(
-                    'border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all',
-                    isDragActive ? 'border-indigo-500/60 bg-indigo-500/5' : 'border-white/[0.05] hover:border-white/[0.1]'
+                    'border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
+                    isDragActive
+                      ? 'border-brand-500/60 bg-brand-500/5'
+                      : 'syn-border hover:border-gray-300'
                   )}>
                   <input {...getInputProps()} />
                   {uploading
-                    ? <div className="flex items-center justify-center gap-2 text-[11px] text-indigo-400">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…
+                    ? <div className="flex items-center justify-center gap-2 text-[12px] text-brand-700">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Uploading…
                       </div>
                     : <>
-                        <Upload className="w-4 h-4 mx-auto mb-1.5 text-slate-700" />
-                        <p className="text-[11px] text-slate-600">Drop PDF, audio, or text</p>
+                        <Upload className="w-5 h-5 mx-auto mb-2 syn-text-muted" />
+                        <p className="text-[12px] syn-text-tertiary">Drop PDF, audio, or text</p>
                       </>
                   }
                 </div>
                 <div className="space-y-1.5">
                   {docs.map(d => (
-                    <div key={d.id} className="flex items-center gap-2.5 bg-[#0c1220] border border-white/[0.05] rounded-xl px-3 py-2.5">
+                    <div key={d.id} className="flex items-center gap-3 syn-card px-3.5 py-3">
                       <div className={cn(
-                        'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                        d.status === 'done' ? 'bg-emerald-500' : d.status === 'processing' ? 'bg-amber-500 animate-pulse' : 'bg-slate-700'
+                        'w-2 h-2 rounded-full flex-shrink-0',
+                        d.status === 'done' ? 'bg-emerald-500' : d.status === 'processing' ? 'bg-amber-500 animate-pulse' : 'bg-gray-300'
                       )} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-slate-300 truncate">{d.filename}</p>
+                        <p className="text-[13px] text-gray-700 truncate">{d.filename}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-[9px] text-slate-700 capitalize">{d.source_type}</p>
+                          <p className="text-[11px] syn-text-muted capitalize">{d.source_type}</p>
                           <SentBadge score={d.sentiment_score} label={d.sentiment_label} />
                         </div>
                       </div>
                     </div>
                   ))}
                   {docs.length === 0 && (
-                    <p className="text-[11px] text-slate-700 text-center py-6">No documents yet.</p>
+                    <p className="text-[12px] syn-text-muted text-center py-6">No documents yet.</p>
                   )}
                 </div>
               </div>
@@ -421,31 +433,31 @@ export default function DealDetailPage() {
           </div>
         </div>
 
-        {/* RIGHT ─ flex-1 */}
+        {/* RIGHT — flex-1 */}
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Right tab bar */}
-          <div className="px-5 py-2.5 border-b border-white/[0.06] flex gap-1 flex-shrink-0">
+          <div className="px-5 py-2.5 border-b syn-border flex gap-1 flex-shrink-0">
             <TabBtn active={rightTab === 'signals'} onClick={() => setRightTab('signals')}>
-              ⚡ Signals {deal.signals?.length ? `(${deal.signals.length})` : ''}
+              Signals {deal.signals?.length ? `(${deal.signals.length})` : ''}
             </TabBtn>
             <TabBtn active={rightTab === 'qa'} onClick={() => setRightTab('qa')}>
-              💬 Ask AI
+              Ask AI
             </TabBtn>
           </div>
 
           {/* Signals */}
           {rightTab === 'signals' && (
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto syn-scroll p-5">
               {deal.signals?.length > 0
                 ? <SignalCards signals={deal.signals} />
                 : (
                   <div className="flex flex-col items-center justify-center h-full py-16 text-center">
-                    <div className="w-10 h-10 rounded-xl bg-slate-800/60 flex items-center justify-center mb-3">
-                      <TrendingUp className="w-5 h-5 text-slate-600" />
+                    <div className="w-12 h-12 rounded-xl syn-surface-2 border syn-border flex items-center justify-center mb-3">
+                      <TrendingUp className="w-5 h-5 syn-text-muted" />
                     </div>
-                    <p className="text-[12px] text-slate-600">No signals detected yet.</p>
-                    <p className="text-[11px] text-slate-700 mt-1">Upload documents and score the deal.</p>
+                    <p className="text-[13px] syn-text-tertiary">No signals detected yet.</p>
+                    <p className="text-[12px] syn-text-muted mt-1">Upload documents and score the deal.</p>
                   </div>
                 )
               }
@@ -455,38 +467,38 @@ export default function DealDetailPage() {
           {/* Q&A */}
           {rightTab === 'qa' && (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div className="flex-1 overflow-y-auto syn-scroll p-5 space-y-4">
                 {qaHistory.length === 0 && (
                   <div className="text-center py-12">
-                    <MessageSquare className="w-8 h-8 text-slate-700 mx-auto mb-3" />
-                    <p className="text-[12px] text-slate-600 mb-3">Ask anything about this deal</p>
+                    <MessageSquare className="w-8 h-8 syn-text-muted mx-auto mb-3" />
+                    <p className="text-[13px] syn-text-tertiary mb-4">Ask anything about this deal</p>
                     {[
                       'Who is the decision maker?',
                       'What objections were raised?',
                       'What is the timeline?',
                     ].map(q => (
                       <button key={q} onClick={() => setQaInput(q)}
-                        className="block w-full text-left text-[11px] text-slate-600 hover:text-slate-400
-                                   bg-slate-900/40 border border-white/[0.04] rounded-xl px-3 py-2 mb-1.5 transition-colors">
+                        className="block w-full text-left text-[12px] syn-text-tertiary hover:syn-text-secondary
+                                   syn-card px-3.5 py-2.5 mb-1.5 transition-colors">
                         {q}
                       </button>
                     ))}
                   </div>
                 )}
                 {qaHistory.map((item, i) => (
-                  <div key={i} className="space-y-2">
+                  <div key={i} className="space-y-3">
                     <div className="flex justify-end">
-                      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-3 py-2 max-w-[85%]">
-                        <p className="text-[12px] text-indigo-200">{item.q}</p>
+                      <div className="bg-brand-50 border border-brand-200 rounded-xl px-4 py-2.5 max-w-[85%]">
+                        <p className="text-[13px] text-brand-700">{item.q}</p>
                       </div>
                     </div>
-                    <div className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-3 max-w-[95%]">
-                      <p className="text-[12px] text-slate-300 leading-relaxed whitespace-pre-wrap">{item.a}</p>
+                    <div className="syn-surface-2 border syn-border rounded-xl p-4 max-w-[95%]">
+                      <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">{item.a}</p>
                       {item.sources?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/[0.05]">
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t syn-border">
                           {item.sources.map((s, si) => (
-                            <span key={si} className="text-[9px] text-slate-600 bg-slate-800/60 px-1.5 py-0.5 rounded-md">
-                              📄 {s}
+                            <span key={si} className="text-[11px] syn-text-tertiary syn-surface-3 px-2 py-0.5 rounded-md">
+                              {s}
                             </span>
                           ))}
                         </div>
@@ -495,28 +507,28 @@ export default function DealDetailPage() {
                   </div>
                 ))}
                 {qaLoading && (
-                  <div className="bg-slate-900/40 border border-white/[0.04] rounded-xl p-3 w-14">
-                    <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
+                  <div className="syn-surface-2 border syn-border rounded-xl p-3 w-14">
+                    <Loader2 className="w-4 h-4 syn-text-tertiary animate-spin" />
                   </div>
                 )}
               </div>
 
               {/* Input */}
-              <div className="p-4 border-t border-white/[0.06]">
+              <div className="p-4 border-t syn-border">
                 <div className="flex gap-2">
                   <input
                     value={qaInput}
                     onChange={e => setQaInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleQa()}
                     placeholder="Ask about this deal…"
-                    className="flex-1 bg-[#0c1220] border border-white/[0.06] rounded-xl px-3 py-2.5
-                               text-[12px] text-white placeholder-slate-700
-                               focus:outline-none focus:border-indigo-500/40 transition-colors"
+                    className="flex-1 syn-surface-2 border syn-border rounded-xl px-4 py-2.5
+                               text-[13px] syn-text-primary placeholder:syn-text-muted
+                               focus:outline-none focus:border-brand-500/40 transition-colors"
                   />
                   <button onClick={handleQa} disabled={qaLoading || !qaInput.trim()}
-                    className="w-9 h-9 flex items-center justify-center bg-indigo-600
-                               hover:bg-indigo-500 disabled:opacity-40 rounded-xl transition-colors flex-shrink-0">
-                    <Send className="w-3.5 h-3.5 text-white" />
+                    className="w-10 h-10 flex items-center justify-center bg-brand-600
+                               hover:bg-brand-500 disabled:opacity-40 rounded-xl transition-colors flex-shrink-0">
+                    <Send className="w-4 h-4 text-white" />
                   </button>
                 </div>
               </div>

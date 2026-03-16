@@ -37,11 +37,11 @@ const STATUS_LABEL: Record<JobStatus, string> = {
 }
 
 const STATUS_STYLE: Record<JobStatus, string> = {
-  pending:     'bg-slate-800 text-slate-500 border-white/[0.06]',
-  downloading: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-  processing:  'bg-violet-500/10 text-violet-400 border-violet-500/20',
-  done:        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  error:       'bg-red-500/10 text-red-400 border-red-500/20',
+  pending:     'bg-gray-100 text-gray-500 border-gray-200',
+  downloading: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  processing:  'bg-violet-50 text-violet-700 border-violet-200',
+  done:        'bg-emerald-50 text-emerald-700 border-emerald-200',
+  error:       'bg-red-50 text-red-700 border-red-200',
 }
 
 export default function CallCaptureZone({
@@ -123,14 +123,14 @@ export default function CallCaptureZone({
             { m: 'file' as Mode, Icon: Upload,   label: 'Upload File',  sub: 'mp3 · mp4 · m4a' },
           ].map(({ m, Icon, label, sub }) => (
             <button key={m} onClick={() => setMode(m)}
-              className="flex items-center gap-2.5 bg-[#0c1220] border border-white/[0.06]
-                         hover:border-indigo-500/30 rounded-xl p-3 text-left transition-all group">
-              <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                <Icon className="w-3.5 h-3.5 text-indigo-400" />
+              className="flex items-center gap-2.5 syn-surface-2 border syn-border
+                         hover:border-brand-500/30 rounded-lg p-3 text-left transition-all group">
+              <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                <Icon className="w-3.5 h-3.5 text-brand-600" />
               </div>
               <div>
-                <p className="text-[12px] font-medium text-slate-300">{label}</p>
-                <p className="text-[10px] text-slate-600">{sub}</p>
+                <p className="text-[12px] font-medium text-gray-700">{label}</p>
+                <p className="text-[11px] text-gray-500">{sub}</p>
               </div>
             </button>
           ))}
@@ -141,7 +141,7 @@ export default function CallCaptureZone({
       {mode !== 'idle' && (
         <div className="space-y-2">
           <button onClick={() => setMode('idle')}
-            className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-400 transition-colors">
+            className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700 transition-colors">
             <ChevronLeft className="w-3 h-3" /> Back
           </button>
           {[
@@ -149,9 +149,9 @@ export default function CallCaptureZone({
             { val: attendees, set: setAttendees, ph: 'Attendees: Sarah Chen, John Smith (optional)' },
           ].map(({ val, set, ph }) => (
             <input key={ph} value={val} onChange={e => set(e.target.value)} placeholder={ph}
-              className="w-full bg-[#0c1220] border border-white/[0.06] rounded-xl px-3 py-2.5
-                         text-[12px] text-white placeholder-slate-700
-                         focus:outline-none focus:border-indigo-500/40 transition-colors" />
+              className="w-full syn-surface-2 border syn-border rounded-lg px-3 py-2.5
+                         text-[13px] text-gray-900 placeholder-gray-400
+                         focus:outline-none focus:border-brand-500/40 transition-colors" />
           ))}
         </div>
       )}
@@ -162,22 +162,22 @@ export default function CallCaptureZone({
           <div className="flex gap-2">
             <input value={url} onChange={e => setUrl(e.target.value)}
               placeholder="https://zoom.us/rec/... or Loom URL"
-              className="flex-1 bg-[#0c1220] border border-white/[0.06] rounded-xl px-3 py-2.5
-                         text-[12px] text-white placeholder-slate-700
-                         focus:outline-none focus:border-indigo-500/40 transition-colors" />
+              className="flex-1 syn-surface-2 border syn-border rounded-lg px-3 py-2.5
+                         text-[13px] text-gray-900 placeholder-gray-400
+                         focus:outline-none focus:border-brand-500/40 transition-colors" />
             <select value={platform} onChange={e => setPlatform(e.target.value)}
-              className="bg-[#0c1220] border border-white/[0.06] rounded-xl px-2 py-2.5
-                         text-[12px] text-slate-400 focus:outline-none focus:border-indigo-500/40 transition-colors">
+              className="syn-surface-2 border syn-border rounded-lg px-2 py-2.5
+                         text-[13px] text-gray-500 focus:outline-none focus:border-brand-500/40 transition-colors">
               {Object.entries(PLATFORMS).filter(([k]) => k !== 'upload').map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
           </div>
           <button onClick={submitUrl} disabled={loading || !url.trim()}
-            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500
-                       disabled:opacity-40 text-white rounded-xl py-2.5 text-[12px] font-medium transition-colors">
+            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500
+                       disabled:opacity-40 text-white rounded-lg py-2.5 text-[12px] font-medium transition-colors">
             {loading
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</>
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing...</>
               : <><Mic2 className="w-3.5 h-3.5" /> Transcribe</>
             }
           </button>
@@ -188,18 +188,18 @@ export default function CallCaptureZone({
       {mode === 'file' && (
         <div {...getRootProps()}
           className={cn(
-            'border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
-            isDragActive ? 'border-indigo-500/60 bg-indigo-500/5' : 'border-white/[0.06] hover:border-white/[0.1]'
+            'border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all',
+            isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-300 hover:border-gray-400'
           )}>
           <input {...getInputProps()} />
-          <Upload className={cn('w-5 h-5 mx-auto mb-2', isDragActive ? 'text-indigo-400' : 'text-slate-700')} />
-          <p className="text-[12px] text-slate-500">
+          <Upload className={cn('w-5 h-5 mx-auto mb-2', isDragActive ? 'text-brand-600' : 'text-gray-500')} />
+          <p className="text-[12px] text-gray-500">
             {isDragActive ? 'Drop to transcribe' : 'Drop audio or video file'}
           </p>
-          <p className="text-[10px] text-slate-700 mt-1">mp3 · mp4 · m4a · wav</p>
+          <p className="text-[11px] text-gray-400 mt-1">mp3 · mp4 · m4a · wav</p>
           {loading && (
-            <div className="flex items-center justify-center gap-2 mt-2 text-[11px] text-violet-400">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…
+            <div className="flex items-center justify-center gap-2 mt-2 text-[11px] text-violet-600">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
             </div>
           )}
         </div>
@@ -208,21 +208,21 @@ export default function CallCaptureZone({
       {/* Job list */}
       {jobs.length > 0 && (
         <div className="space-y-1.5 pt-1">
-          <p className="text-[9px] font-semibold text-slate-700 uppercase tracking-[0.1em]">Jobs</p>
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Jobs</p>
           {jobs.map(job => (
             <div key={job.id}
-              className="flex items-center gap-2.5 bg-[#0c1220] border border-white/[0.05] rounded-xl px-3 py-2.5">
+              className="flex items-center gap-2.5 syn-card px-3 py-2.5">
               {job.status === 'done'
-                ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                ? <CheckCircle2 className="w-3.5 h-3.5 text-positive flex-shrink-0" />
                 : job.status === 'error'
-                ? <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-                : <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin flex-shrink-0" />
+                ? <AlertCircle className="w-3.5 h-3.5 text-negative flex-shrink-0" />
+                : <Loader2 className="w-3.5 h-3.5 text-brand-600 animate-spin flex-shrink-0" />
               }
               <div className="flex-1 min-w-0">
-                <p className="text-[11.5px] text-slate-300 truncate">{job.callTitle}</p>
-                <p className="text-[9px] text-slate-700">{PLATFORMS[job.platform] || job.platform}</p>
+                <p className="text-[12px] text-gray-700 truncate">{job.callTitle}</p>
+                <p className="text-[11px] text-gray-500">{PLATFORMS[job.platform] || job.platform}</p>
               </div>
-              <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', STATUS_STYLE[job.status])}>
+              <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-md border flex-shrink-0', STATUS_STYLE[job.status])}>
                 {STATUS_LABEL[job.status]}
               </span>
             </div>
