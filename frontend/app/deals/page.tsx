@@ -22,11 +22,11 @@ const STAGES = ['Discovery', 'Qualification', 'Demo', 'Proposal', 'Negotiation',
 const DELETE_PHRASE = 'Yes I want to delete this deal'
 
 function WinBar({ prob }: { prob: number | null }) {
-  if (prob === null) return <div className="h-1 w-full bg-slate-800 rounded-full" />
+  if (prob === null) return <div className="h-[2px] w-full bg-gray-200 rounded-full" />
   const pct = Math.round(prob * 100)
   const color = pct >= 65 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
   return (
-    <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+    <div className="h-[2px] w-full bg-gray-200 rounded-full overflow-hidden">
       <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
     </div>
   )
@@ -34,22 +34,22 @@ function WinBar({ prob }: { prob: number | null }) {
 
 function StageChip({ stage }: { stage: string }) {
   const colors: Record<string, string> = {
-    'Discovery':    'bg-slate-800 text-slate-400 border-white/[0.06]',
-    'Qualification':'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    'Demo':         'bg-violet-500/10 text-violet-400 border-violet-500/20',
-    'Proposal':     'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    'Negotiation':  'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    'Closed Won':   'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    'Closed Lost':  'bg-red-500/10 text-red-400 border-red-500/20',
+    'Discovery':     'bg-gray-100 text-gray-600',
+    'Qualification': 'bg-blue-50 text-blue-700',
+    'Demo':          'bg-violet-50 text-violet-700',
+    'Proposal':      'bg-amber-50 text-amber-700',
+    'Negotiation':   'bg-orange-50 text-orange-700',
+    'Closed Won':    'bg-emerald-50 text-emerald-700',
+    'Closed Lost':   'bg-red-50 text-red-700',
   }
   return (
-    <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded-md border', colors[stage] || colors['Discovery'])}>
+    <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-md', colors[stage] || colors['Discovery'])}>
       {stage}
     </span>
   )
 }
 
-// ── GitHub-style Delete Confirmation Modal ─────────────────────────────────────
+// ── Delete Confirmation Modal ────────────────────────────────────────────────
 
 function DeleteModal({
   deal,
@@ -74,19 +74,19 @@ function DeleteModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="syn-modal-backdrop fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-[#0d1117] border border-red-500/20 rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="syn-modal-content syn-surface border border-red-200 rounded-xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-4 border-b syn-border">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <h2 className="text-[13px] font-semibold text-white">Delete deal</h2>
+            <AlertTriangle className="w-4 h-4 text-red-600" />
+            <h2 className="text-[13px] font-semibold text-gray-900">Delete deal</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-600 hover:text-slate-400 transition-colors"
+            className="syn-text-muted hover:syn-text-secondary transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -94,25 +94,25 @@ function DeleteModal({
 
         {/* Body */}
         <div className="p-5 space-y-4">
-          <p className="text-[12px] text-slate-400 leading-relaxed">
-            This action <span className="font-semibold text-white">cannot be undone</span>. This will permanently delete the deal{' '}
-            <span className="font-semibold text-white">"{deal.name}"</span>, along with all its documents, scores, and analysis history.
+          <p className="text-[12px] syn-text-secondary leading-relaxed">
+            This action <span className="font-semibold text-gray-900">cannot be undone</span>. This will permanently delete the deal{' '}
+            <span className="font-semibold text-gray-900">&ldquo;{deal.name}&rdquo;</span>, along with all its documents, scores, and analysis history.
           </p>
 
           {/* Deal summary */}
-          <div className="bg-slate-900/60 border border-white/[0.05] rounded-xl px-4 py-3 space-y-1">
-            <p className="text-[11px] text-slate-500">
-              <span className="text-slate-400 font-medium">{deal.company}</span>
-              {' · '}{deal.stage}
-              {' · '}<span className="text-slate-400">${(deal.value || 0).toLocaleString()}</span>
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <p className="text-[12px] syn-text-tertiary">
+              <span className="syn-text-secondary font-medium">{deal.company}</span>
+              {' \u00b7 '}{deal.stage}
+              {' \u00b7 '}<span className="syn-text-secondary">${(deal.value || 0).toLocaleString()}</span>
             </p>
           </div>
 
           {/* Typing confirmation */}
           <div>
-            <label className="block text-[10px] text-slate-500 mb-1.5">
+            <label className="block text-[11px] syn-text-tertiary mb-1.5">
               To confirm, type{' '}
-              <span className="font-mono text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[9px]">
+              <span className="font-mono syn-text-secondary bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">
                 {DELETE_PHRASE}
               </span>
             </label>
@@ -122,12 +122,12 @@ function DeleteModal({
               onChange={e => setTyped(e.target.value)}
               placeholder={DELETE_PHRASE}
               className={cn(
-                'w-full bg-slate-900/60 border rounded-xl px-3 py-2',
-                'text-[12px] text-white placeholder-slate-800',
+                'w-full syn-surface-2 border rounded-lg px-3 py-2',
+                'text-[13px] text-gray-900 placeholder-gray-400',
                 'focus:outline-none transition-colors font-mono',
                 confirmed
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/[0.06] focus:border-slate-500/50'
+                  : 'syn-border focus:border-brand-500'
               )}
             />
           </div>
@@ -138,8 +138,8 @@ function DeleteModal({
           <button
             onClick={onClose}
             disabled={deleting}
-            className="flex-1 py-2 text-[11px] font-medium rounded-xl border border-white/[0.06]
-                       text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
+            className="flex-1 py-2 text-[13px] font-medium rounded-lg border syn-border
+                       syn-text-tertiary hover:syn-text-secondary transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -147,15 +147,15 @@ function DeleteModal({
             onClick={onConfirm}
             disabled={!confirmed || deleting}
             className={cn(
-              'flex-1 py-2 text-[11px] font-semibold rounded-xl transition-colors',
+              'flex-1 py-2 text-[13px] font-semibold rounded-lg transition-colors',
               'flex items-center justify-center gap-1.5',
               confirmed && !deleting
                 ? 'bg-red-600 hover:bg-red-500 text-white cursor-pointer'
-                : 'bg-red-900/30 text-red-800 cursor-not-allowed'
+                : 'bg-red-100 text-red-300 cursor-not-allowed'
             )}
           >
             {deleting
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting…</>
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting&hellip;</>
               : <><Trash2 className="w-3.5 h-3.5" /> Delete deal</>
             }
           </button>
@@ -244,94 +244,110 @@ export default function DealsPage() {
     <div className="flex-1 flex flex-col min-h-0">
 
       {/* Header */}
-      <div className="h-[60px] border-b border-white/[0.05] px-6 flex items-center justify-between flex-shrink-0">
+      <div className="h-[64px] border-b syn-border px-6 flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-[14px] font-semibold text-white">Pipeline</h1>
-          <p className="text-[10px] text-slate-600">{deals.length} deal{deals.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-[18px] font-semibold syn-text-primary">Pipeline</h1>
+          <p className="text-[12px] syn-text-secondary">{deals.length} deal{deals.length !== 1 ? 's' : ''} in pipeline</p>
         </div>
         <button
           onClick={() => setShowNew(true)}
-          className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl
-                     bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+          className="flex items-center gap-1.5 text-[12px] font-semibold px-4 py-2 rounded-lg
+                     bg-brand-600 hover:bg-brand-500 text-white transition-colors">
           <Plus className="w-3.5 h-3.5" /> New Deal
         </button>
       </div>
 
-      {/* Stats strip */}
-      <div className="flex-shrink-0 border-b border-white/[0.05] px-6 py-3 flex gap-6">
-        {[
-          { label: 'Total Pipeline', val: `$${(totalValue / 1000).toFixed(0)}k` },
-          { label: 'Weighted',       val: `$${(weightedValue / 1000).toFixed(0)}k` },
-          { label: 'Avg Win Prob',   val: avgProb !== null ? `${Math.round(avgProb * 100)}%` : '—' },
-          { label: 'Deals',          val: String(deals.length) },
-        ].map(({ label, val }) => (
-          <div key={label}>
-            <p className="text-[9px] text-slate-600 uppercase tracking-wider">{label}</p>
-            <p className="text-[14px] font-bold text-white mt-0.5">{val}</p>
-          </div>
-        ))}
+      {/* KPI Stats Strip */}
+      <div className="flex-shrink-0 border-b syn-border px-6 py-4">
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: 'Total Pipeline', val: `$${(totalValue / 1000).toFixed(0)}k`, border: 'border-l-brand-500' },
+            { label: 'Weighted',       val: `$${(weightedValue / 1000).toFixed(0)}k`, border: 'border-l-violet-500' },
+            { label: 'Avg Win Prob',   val: avgProb !== null ? `${Math.round(avgProb * 100)}%` : '\u2014', border: 'border-l-emerald-500' },
+            { label: 'Deals',          val: String(deals.length), border: 'border-l-amber-500' },
+          ].map(({ label, val, border }) => (
+            <div key={label} className={cn('bg-white border syn-border rounded-lg px-4 py-3 shadow-sm border-l-4', border)}>
+              <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">{label}</p>
+              <p className="text-[20px] font-bold syn-text-primary mt-1">{val}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Deal list */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto syn-scroll p-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-5 h-5 text-slate-600 animate-spin" />
+            <Loader2 className="w-5 h-5 syn-text-muted animate-spin" />
           </div>
         ) : deals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-12 h-12 rounded-xl bg-slate-800/60 flex items-center justify-center mb-4">
-              <TrendingUp className="w-6 h-6 text-slate-600" />
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-14 h-14 rounded-xl syn-surface-2 border syn-border flex items-center justify-center mb-5">
+              <TrendingUp className="w-6 h-6 syn-text-tertiary" />
             </div>
-            <p className="text-[13px] text-slate-500">No deals yet</p>
-            <p className="text-[11px] text-slate-700 mt-1 mb-4">Create your first deal to get started</p>
+            <p className="text-[14px] font-medium syn-text-secondary">No deals yet</p>
+            <p className="text-[12px] syn-text-tertiary mt-1.5 mb-5 max-w-[240px]">
+              Create your first deal to start tracking your pipeline
+            </p>
             <button onClick={() => setShowNew(true)}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+              className="flex items-center gap-1.5 text-[12px] font-semibold px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition-colors">
               <Plus className="w-3.5 h-3.5" /> New Deal
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {deals.map(deal => {
               const pct = deal.win_probability !== null ? Math.round(deal.win_probability * 100) : null
-              const pctColor = pct === null ? 'text-slate-600' : pct >= 65 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
+              const pctColor = pct === null ? 'syn-text-muted' : pct >= 65 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-600' : 'text-red-600'
+              const borderIndicator = pct === null
+                ? 'border-l-gray-300'
+                : pct >= 65
+                  ? 'border-l-emerald-500'
+                  : pct >= 40
+                    ? 'border-l-amber-500'
+                    : 'border-l-red-500'
               return (
                 <div key={deal.id}
                   onClick={() => router.push(`/deals/${deal.id}`)}
-                  className="bg-[#0d1117] border border-white/[0.05] rounded-2xl p-4 cursor-pointer
-                             hover:border-white/[0.1] hover:bg-slate-900/60 transition-all group relative">
+                  className={cn(
+                    'syn-surface border syn-border rounded-xl p-4 cursor-pointer',
+                    'hover:border-gray-300 transition-all group relative',
+                    'border-l-2', borderIndicator
+                  )}>
 
-                  {/* Delete button — visible on hover, top-right corner */}
+                  {/* Delete button -- visible on hover, top-right corner */}
                   <button
                     onClick={e => {
                       e.stopPropagation() // prevent navigating to deal
                       setDeleteTarget(deal)
                     }}
                     className="absolute top-3 right-3 opacity-0 group-hover:opacity-100
-                               w-6 h-6 rounded-lg flex items-center justify-center
-                               text-slate-700 hover:text-red-400 hover:bg-red-500/10
+                               w-7 h-7 rounded-lg flex items-center justify-center
+                               syn-text-muted hover:text-red-400 hover:bg-red-500/10
                                transition-all duration-150 z-10"
                     title="Delete deal"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
 
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="min-w-0">
-                      <h3 className="text-[13px] font-medium text-white truncate group-hover:text-indigo-300 transition-colors pr-6">
-                        {deal.name}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Building2 className="w-2.5 h-2.5 text-slate-700" />
-                        <p className="text-[10px] text-slate-600">{deal.company}</p>
-                        <span className="text-slate-800">·</span>
-                        <p className="text-[10px] text-slate-600">{deal.owner || '—'}</p>
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2.5 mb-1">
+                        <h3 className="text-[14px] font-medium text-gray-900 truncate group-hover:text-brand-400 transition-colors">
+                          {deal.name}
+                        </h3>
+                        <StageChip stage={deal.stage} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-3 h-3 syn-text-muted flex-shrink-0" />
+                        <p className="text-[12px] text-gray-500">{deal.company}</p>
+                        <span className="syn-text-muted">&middot;</span>
+                        <p className="text-[12px] text-gray-500">{deal.owner || '\u2014'}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 pr-6">
-                      <StageChip stage={deal.stage} />
-                      <span className={cn('text-[13px] font-bold', pctColor)}>
-                        {pct !== null ? `${pct}%` : '—'}
+                    <div className="flex-shrink-0 text-right pr-8">
+                      <span className={cn('text-[18px] font-bold tabular-nums', pctColor)}>
+                        {pct !== null ? `${pct}%` : '\u2014'}
                       </span>
                     </div>
                   </div>
@@ -340,20 +356,20 @@ export default function DealsPage() {
 
                   <div className="flex items-center justify-between mt-2.5">
                     <div className="flex items-center gap-1.5">
-                      <DollarSign className="w-2.5 h-2.5 text-slate-700" />
-                      <p className="text-[10px] text-slate-500 font-medium">
+                      <DollarSign className="w-3 h-3 syn-text-muted" />
+                      <p className="text-[14px] syn-text-secondary font-semibold tabular-nums">
                         ${(deal.value || 0).toLocaleString()}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       {deal.time_to_close_days && (
-                        <>
-                          <Clock className="w-2.5 h-2.5 text-slate-700" />
-                          <p className="text-[10px] text-slate-600">{deal.time_to_close_days}d est.</p>
-                        </>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 syn-text-muted" />
+                          <p className="text-[12px] syn-text-tertiary">{deal.time_to_close_days}d est.</p>
+                        </div>
                       )}
                       {!deal.last_scored_at && (
-                        <span className="text-[9px] text-slate-700 bg-slate-800/60 px-1.5 py-0.5 rounded-md border border-white/[0.04]">
+                        <span className="text-[11px] syn-text-muted syn-surface-2 px-2 py-0.5 rounded-md">
                           Not scored
                         </span>
                       )}
@@ -368,11 +384,14 @@ export default function DealsPage() {
 
       {/* New Deal modal */}
       {showNew && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0d1117] border border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <h2 className="text-[13px] font-semibold text-white">New Deal</h2>
-              <button onClick={() => setShowNew(false)} className="text-slate-600 hover:text-slate-400 transition-colors">
+        <div
+          className="syn-modal-backdrop fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNew(false) }}
+        >
+          <div className="syn-modal-content syn-surface border syn-border rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b syn-border">
+              <h2 className="text-[14px] font-semibold text-gray-900">New Deal</h2>
+              <button onClick={() => setShowNew(false)} className="syn-text-muted hover:syn-text-secondary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -385,36 +404,36 @@ export default function DealsPage() {
                 { label: 'Est. Days to Close', key: 'time_to_close_days', placeholder: 'e.g. 45' },
               ].map(({ label, key, placeholder }) => (
                 <div key={key}>
-                  <label className="block text-[10px] text-slate-600 uppercase tracking-wider mb-1">{label}</label>
+                  <label className="block text-[11px] syn-text-tertiary uppercase tracking-wider mb-1.5 font-medium">{label}</label>
                   <input
                     value={form[key as keyof typeof form]}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     placeholder={placeholder}
-                    className="w-full bg-slate-900/60 border border-white/[0.06] rounded-xl px-3 py-2
-                               text-[12px] text-white placeholder-slate-700
-                               focus:outline-none focus:border-indigo-500/50 transition-colors"
+                    className="w-full syn-surface-2 border syn-border rounded-lg px-3 py-2
+                               text-[13px] text-gray-900 placeholder-gray-400
+                               focus:outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
               ))}
               <div>
-                <label className="block text-[10px] text-slate-600 uppercase tracking-wider mb-1">Stage</label>
+                <label className="block text-[11px] syn-text-tertiary uppercase tracking-wider mb-1.5 font-medium">Stage</label>
                 <select
                   value={form.stage}
                   onChange={e => setForm(f => ({ ...f, stage: e.target.value }))}
-                  className="w-full bg-slate-900/60 border border-white/[0.06] rounded-xl px-3 py-2
-                             text-[12px] text-white focus:outline-none focus:border-indigo-500/50 transition-colors">
+                  className="w-full syn-surface-2 border syn-border rounded-lg px-3 py-2
+                             text-[13px] text-gray-900 focus:outline-none focus:border-brand-500 transition-colors">
                   {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
             <div className="flex gap-2 px-5 pb-5">
               <button onClick={() => setShowNew(false)}
-                className="flex-1 py-2 text-[11px] font-medium rounded-xl border border-white/[0.06] text-slate-500 hover:text-slate-300 transition-colors">
+                className="flex-1 py-2 text-[13px] font-medium rounded-lg border syn-border syn-text-tertiary hover:syn-text-secondary transition-colors">
                 Cancel
               </button>
               <button onClick={handleCreate} disabled={creating || !form.name.trim() || !form.company.trim()}
-                className="flex-1 py-2 text-[11px] font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white transition-colors flex items-center justify-center gap-1.5">
-                {creating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating…</> : 'Create Deal'}
+                className="flex-1 py-2 text-[13px] font-semibold rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white transition-colors flex items-center justify-center gap-1.5">
+                {creating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating&hellip;</> : 'Create Deal'}
               </button>
             </div>
           </div>

@@ -4,7 +4,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SYNVELO DESIGN SYSTEM — LIGHT MODE
+   Logo palette: deep blue → indigo → violet → magenta
+   Sidebar: brand indigo (#1e1b4b)  |  Content: white/near-white
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @theme inline {
+  /* ── Shadcn plumbing ─────────────────────────────────────────────────── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -45,76 +52,74 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Synvelo brand colors (derived from logo gradient) ───────────── */
+  --color-brand-50:  #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+
+  /* ── Surface colors ────────────────────────────────────────────────── */
+  --color-surface-0:  var(--syn-bg);
+  --color-surface-1:  var(--syn-surface-1);
+  --color-surface-2:  var(--syn-surface-2);
+  --color-surface-3:  var(--syn-surface-3);
+
+  /* ── Semantic status ─────────────────────────────────────────────── */
+  --color-positive:   #16a34a;
+  --color-warning:    #d97706;
+  --color-negative:   #dc2626;
+  --color-info:       #2563eb;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --background: #F8F9FA;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #4f46e5;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #F3F4F6;
+  --accent-foreground: #111827;
+  --destructive: #dc2626;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #4f46e5;
+  --chart-1: #4f46e5;
+  --chart-2: #7c3aed;
+  --chart-3: #a855f7;
+  --chart-4: #16a34a;
+  --chart-5: #d97706;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #1e1b4b;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #1e1b4b;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: rgba(255, 255, 255, 0.2);
+
+  /* Synvelo surfaces (light) */
+  --syn-bg: #F8F9FA;
+  --syn-surface-1: #FFFFFF;
+  --syn-surface-2: #F3F4F6;
+  --syn-surface-3: #E5E7EB;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.00 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
+/* ── Base layer ────────────────────────────────────────────────────────── */
 
 @layer base {
   * {
@@ -122,8 +127,144 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   html {
     @apply font-sans;
   }
+}
+
+/* ── Synvelo utility classes ───────────────────────────────────────────── */
+
+@layer utilities {
+  /* Surfaces */
+  .syn-bg       { background-color: var(--syn-bg); }
+  .syn-surface  { background-color: var(--syn-surface-1); }
+  .syn-surface-2 { background-color: var(--syn-surface-2); }
+  .syn-surface-3 { background-color: var(--syn-surface-3); }
+
+  /* Borders */
+  .syn-border        { border-color: #E5E7EB; }
+  .syn-border-strong { border-color: #D1D5DB; }
+
+  /* Text hierarchy */
+  .syn-text-primary   { color: #111827; }    /* gray-900 */
+  .syn-text-secondary { color: #4B5563; }    /* gray-600 */
+  .syn-text-tertiary  { color: #6B7280; }    /* gray-500 */
+  .syn-text-muted     { color: #9CA3AF; }    /* gray-400 */
+
+  /* Brand gradient (for special elements only) */
+  .syn-gradient {
+    background: linear-gradient(135deg, #2563eb 0%, #6366f1 40%, #7c3aed 70%, #a855f7 100%);
+  }
+  .syn-gradient-text {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Card style — white, subtle border & shadow */
+  .syn-card {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .syn-card:hover {
+    border-color: #D1D5DB;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Scrollbar — light background */
+  .syn-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .syn-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .syn-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+  .syn-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  /* Scrollbar — dark background (sidebar) */
+  .syn-scroll-dark::-webkit-scrollbar {
+    width: 4px;
+  }
+  .syn-scroll-dark::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .syn-scroll-dark::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  .syn-scroll-dark::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ── Modal / overlay animations ────────────────────────────────────────── */
+
+@keyframes syn-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes syn-slide-up {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes syn-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.syn-modal-backdrop {
+  animation: syn-fade-in 150ms ease-out;
+}
+
+.syn-modal-content {
+  animation: syn-slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Recharts overrides (enterprise light mode) ───────────────────────── */
+
+.recharts-cartesian-axis-tick-value {
+  fill: #6B7280 !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.recharts-cartesian-grid line {
+  stroke: rgba(0, 0, 0, 0.06) !important;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-default-tooltip {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  padding: 8px 12px !important;
+}
+
+.recharts-default-tooltip .recharts-tooltip-label {
+  color: #111827 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+}
+
+.recharts-default-tooltip .recharts-tooltip-item {
+  color: #6B7280 !important;
+  font-size: 11px !important;
 }

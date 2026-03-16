@@ -120,10 +120,10 @@ async def score_deal(deal_id: str, db: AsyncSession) -> dict:
     # Append to score_history
     await db.execute(text("""
         INSERT INTO score_history
-            (deal_id, win_probability, probability_low, probability_high,
-             sentiment_avg, trigger_type)
+            (id, deal_id, win_probability, probability_low, probability_high,
+             sentiment_avg, trigger_type, scored_at)
         VALUES
-            (CAST(:id AS uuid), :prob, :low, :high, :sent, 'manual_score')
+            (gen_random_uuid(), CAST(:id AS uuid), :prob, :low, :high, :sent, 'manual_score', NOW())
     """), {
         "id":   deal_id,
         "prob": result.get("win_probability"),

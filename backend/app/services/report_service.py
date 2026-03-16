@@ -435,21 +435,27 @@ def build_pdf(report: dict, output_path: str, deal_name: str) -> int:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-async def generate_report(deal_id: str, db: AsyncSession) -> dict:
+async def generate_report(deal_id: str, db: AsyncSession, org_id: str = None) -> dict:
     """
     Full pipeline:
-    1. Fetch deal metadata
+    1. Fetch deal metadata (filtered by org_id for tenant isolation)
     2. Pull all document content for this deal
     3. GPT-4o synthesis
     4. ReportLab PDF render
     5. Save metadata to deal_reports table
     6. Return {report_id, filename, path, page_count}
     """
-    # 1. Deal metadata
-    deal_res = await db.execute(
-        text("SELECT id, name, company, stage, value, win_probability FROM deals WHERE id = CAST(:id AS uuid)"),
-        {"id": deal_id}
-    )
+    # 1. Deal metadata — always filter by org_id when available
+    if org_id:
+        deal_res = await db.execute(
+            text("SELECT id, name, company, stage, value, win_probability FROM deals WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)"),
+            {"id": deal_id, "org_id": org_id}
+        )
+    else:
+        deal_res = await db.execute(
+            text("SELECT id, name, company, stage, value, win_probability FROM deals WHERE id = CAST(:id AS uuid)"),
+            {"id": deal_id}
+        )
     deal = deal_res.fetchone()
     if not deal:
         return {"error": "Deal not found"}
@@ -526,14 +532,15 @@ async def generate_report(deal_id: str, db: AsyncSession) -> dict:
     # 5. Store metadata
     await db.execute(text("""
         INSERT INTO deal_reports
-            (id, deal_id, filename, page_count, report_json, created_at)
-        VALUES (CAST(:id AS uuid), CAST(:did AS uuid), :fname, :pages, CAST(:rjson AS jsonb), NOW())
+            (id, deal_id, org_id, filename, page_count, report_json, created_at)
+        VALUES (CAST(:id AS uuid), CAST(:did AS uuid), CAST(:org_id AS uuid), :fname, :pages, CAST(:rjson AS jsonb), NOW())
     """), {
-        "id":    report_id,
-        "did":   deal_id,
-        "fname": filename,
-        "pages": page_count,
-        "rjson": json.dumps(report_json),
+        "id":     report_id,
+        "did":    deal_id,
+        "org_id": org_id or "00000000-0000-0000-0000-000000000001",
+        "fname":  filename,
+        "pages":  page_count,
+        "rjson":  json.dumps(report_json),
     })
     await db.commit()
 

@@ -5,6 +5,13 @@ import { supabase } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
 
 const PUBLIC_PATHS = ['/login']
+const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+function isSessionExpired(session: { user: { last_sign_in_at?: string } }): boolean {
+  const signedInAt = session.user.last_sign_in_at
+  if (!signedInAt) return true
+  return Date.now() - new Date(signedInAt).getTime() > MAX_SESSION_AGE_MS
+}
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router   = useRouter()
@@ -14,8 +21,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const isPublic = PUBLIC_PATHS.includes(pathname)
+
+      if (session && isSessionExpired(session)) {
+        await supabase.auth.signOut()
+        router.replace('/login')
+        setChecking(false)
+        return
+      }
 
       if (!session && !isPublic) {
         router.replace('/login')
@@ -42,8 +56,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-[#070b12] flex items-center justify-center">
-        <Loader2 className="w-5 h-5 text-slate-600 animate-spin" />
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
       </div>
     )
   }
