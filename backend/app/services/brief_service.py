@@ -29,8 +29,10 @@ async def generate_brief(deal_id: str, db: AsyncSession) -> dict:
 
     risk_flags = deal.risk_flags or []
     if isinstance(risk_flags, str):
-        try:    risk_flags = json.loads(risk_flags)
-        except: risk_flags = []
+        try:
+            risk_flags = json.loads(risk_flags)
+        except Exception:
+            risk_flags = []
 
     deal_info = (
         f"Deal: {deal.name} | Company: {deal.company}\n"

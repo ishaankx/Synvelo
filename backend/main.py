@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
-from app.routers import deals, ingest, pulse_sync, transcription, analytics, reports
+from app.routers import deals, ingest, pulse_sync, transcription, analytics, reports, organisations
 
 app = FastAPI(title="Synvelo API", version="2.0.0")
 
@@ -30,3 +30,4 @@ app.include_router(pulse_sync.router)
 app.include_router(transcription.router)
 app.include_router(analytics.router)
 app.include_router(reports.router)
+app.include_router(organisations.router)

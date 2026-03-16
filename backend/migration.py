@@ -67,7 +67,7 @@ STEPS = [
 
 
 async def migrate():
-    print(f"Connecting to database...")
+    print("Connecting to database...")
     conn = await asyncpg.connect(RAW_URL)
     print("Running Synvelo V2 migration...\n")
 

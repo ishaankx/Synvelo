@@ -1,16 +1,33 @@
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List
 from datetime import datetime
-import uuid
 
-# ─── Deal schemas ─────────────────────────────────────────
+# ─── Organisation schemas ──────────────────────────────────
+
+class OrganisationCreate(BaseModel):
+    name: str
+    slug: str
+    plan: str = "free"
+
+
+class OrganisationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    plan: str
+    created_at: datetime
+
+
+# ─── Deal schemas ──────────────────────────────────────────
 
 class DealCreate(BaseModel):
-    name: str
-    company: str = ""
-    stage: str = "Qualification"
-    value: float = 0.0
-    owner: str = ""
+    name:               str
+    company:            str = ""
+    stage:              str = "Qualification"
+    value:              float = 0.0
+    owner:              str = ""
+    time_to_close_days: Optional[int] = None   # ← added, was missing
+
 
 class EvidenceSpan(BaseModel):
     excerpt: str
@@ -18,6 +35,7 @@ class EvidenceSpan(BaseModel):
     filename: str
     impact: Optional[float] = None
     type: str = "evidence"  # evidence | feature
+
 
 class DealScore(BaseModel):
     deal_id: str
@@ -28,6 +46,7 @@ class DealScore(BaseModel):
     risk_flags: List[str]
     recommended_actions: List[str]
     score_summary: str
+
 
 class DealResponse(BaseModel):
     id: str
@@ -48,6 +67,7 @@ class DealResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 # ─── Ingest schemas ───────────────────────────────────────
 
 class IngestResponse(BaseModel):
@@ -58,16 +78,19 @@ class IngestResponse(BaseModel):
     chunks_created: int = 0
     message: str = ""
 
+
 # ─── Pulse Sync schemas ───────────────────────────────────
 
 class PulseQuery(BaseModel):
     query: str
     deal_id: Optional[str] = None
 
+
 class ShipmentOption(BaseModel):
     qty: int
     eta: str
     cost: float
+
 
 class PulseProposal(BaseModel):
     summary: str
@@ -78,6 +101,7 @@ class PulseProposal(BaseModel):
     recommended: str
     win_probability_impact: float
     requires_approval: bool = True
+
 
 class PulseActionResponse(BaseModel):
     action_id: str

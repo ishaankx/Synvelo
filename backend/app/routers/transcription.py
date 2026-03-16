@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db, AsyncSessionLocal
 from app.services.transcription_service import transcribe_audio_file, download_and_transcribe_url
+from app.dependencies import get_org_id
 from app.config import settings
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
@@ -23,7 +24,6 @@ class URLRequest(BaseModel):
     attendees:  Optional[str] = ""
 
 
-# Background task wrappers use their own DB session
 async def _bg_file(audio_path, deal_id, tid, deal_name, call_title, platform, attendees, doc_id):
     async with AsyncSessionLocal() as db:
         await transcribe_audio_file(
@@ -41,16 +41,18 @@ async def _bg_url(url, deal_id, tid, deal_name, call_title, platform, attendees,
 @router.post("/upload")
 async def upload_and_transcribe(
     bg:         BackgroundTasks,
-    deal_id:    str        = Form(...),
-    call_title: str        = Form(default=""),
-    attendees:  str        = Form(default=""),
-    platform:   str        = Form(default="upload"),
-    file:       UploadFile = File(...),
+    deal_id:    str          = Form(...),
+    call_title: str          = Form(default=""),
+    attendees:  str          = Form(default=""),
+    platform:   str          = Form(default="upload"),
+    file:       UploadFile   = File(...),
     db:         AsyncSession = Depends(get_db),
+    org_id:     str          = Depends(get_org_id),
 ):
-    deal_res = await db.execute(
-        text("SELECT id, name FROM deals WHERE id = CAST(:id AS uuid)"), {"id": deal_id}
-    )
+    deal_res = await db.execute(text("""
+        SELECT id, name FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
     deal = deal_res.fetchone()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
@@ -69,9 +71,9 @@ async def upload_and_transcribe(
     """), {"id": tid, "did": deal_id, "platform": platform, "title": call_title, "att": attendees})
 
     await db.execute(text("""
-        INSERT INTO documents (id, deal_id, filename, source_type, status, created_at)
-        VALUES (CAST(:id AS uuid), CAST(:did AS uuid), :fname, 'audio', 'processing', NOW())
-    """), {"id": docid, "did": deal_id, "fname": call_title or file.filename or "call_recording"})
+        INSERT INTO documents (id, deal_id, filename, source_type, status, org_id, created_at)
+        VALUES (CAST(:id AS uuid), CAST(:did AS uuid), :fname, 'audio', 'processing', CAST(:org_id AS uuid), NOW())
+    """), {"id": docid, "did": deal_id, "fname": call_title or file.filename or "call_recording", "org_id": org_id})
 
     await db.commit()
 
@@ -92,10 +94,12 @@ async def transcribe_from_url(
     req: URLRequest,
     bg:  BackgroundTasks,
     db:  AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
 ):
-    deal_res = await db.execute(
-        text("SELECT id, name FROM deals WHERE id = CAST(:id AS uuid)"), {"id": req.deal_id}
-    )
+    deal_res = await db.execute(text("""
+        SELECT id, name FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": req.deal_id, "org_id": org_id})
     deal = deal_res.fetchone()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
@@ -113,11 +117,12 @@ async def transcribe_from_url(
     })
 
     await db.execute(text("""
-        INSERT INTO documents (id, deal_id, filename, source_type, status, created_at)
-        VALUES (CAST(:id AS uuid), CAST(:did AS uuid), :fname, 'audio', 'processing', NOW())
+        INSERT INTO documents (id, deal_id, filename, source_type, status, org_id, created_at)
+        VALUES (CAST(:id AS uuid), CAST(:did AS uuid), :fname, 'audio', 'processing', CAST(:org_id AS uuid), NOW())
     """), {
         "id": docid, "did": req.deal_id,
         "fname": req.call_title or f"{req.platform}_recording",
+        "org_id": org_id,
     })
 
     await db.commit()
@@ -131,32 +136,51 @@ async def transcribe_from_url(
 
 
 @router.get("/status/{tid}")
-async def get_status(tid: str, db: AsyncSession = Depends(get_db)):
+async def get_status(
+    tid: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    # Join with deals to enforce org ownership
     res = await db.execute(text("""
-        SELECT id, deal_id, platform, status, call_title, attendees,
-               duration_seconds, pdf_filename, error_message, created_at, completed_at
-        FROM call_transcriptions WHERE id = CAST(:id AS uuid)
-    """), {"id": tid})
+        SELECT ct.id, ct.deal_id, ct.platform, ct.status, ct.call_title, ct.attendees,
+               ct.duration_seconds, ct.pdf_filename, ct.error_message, ct.created_at, ct.completed_at
+        FROM call_transcriptions ct
+        JOIN deals d ON d.id = ct.deal_id
+        WHERE ct.id = CAST(:id AS uuid) AND d.org_id = CAST(:org_id AS uuid)
+    """), {"id": tid, "org_id": org_id})
     r = res.fetchone()
     if not r:
         raise HTTPException(status_code=404, detail="Transcription job not found")
     return {
-        "id":              str(r.id),
-        "deal_id":         str(r.deal_id),
-        "platform":        r.platform,
-        "status":          r.status,
-        "call_title":      r.call_title,
-        "attendees":       r.attendees,
-        "duration_seconds":r.duration_seconds,
-        "pdf_filename":    r.pdf_filename,
-        "error_message":   r.error_message,
-        "created_at":      str(r.created_at),
-        "completed_at":    str(r.completed_at) if r.completed_at else None,
+        "id":               str(r.id),
+        "deal_id":          str(r.deal_id),
+        "platform":         r.platform,
+        "status":           r.status,
+        "call_title":       r.call_title,
+        "attendees":        r.attendees,
+        "duration_seconds": r.duration_seconds,
+        "pdf_filename":     r.pdf_filename,
+        "error_message":    r.error_message,
+        "created_at":       str(r.created_at),
+        "completed_at":     str(r.completed_at) if r.completed_at else None,
     }
 
 
 @router.get("/list/{deal_id}")
-async def list_transcriptions(deal_id: str, db: AsyncSession = Depends(get_db)):
+async def list_transcriptions(
+    deal_id: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: str = Depends(get_org_id),
+):
+    # Verify deal ownership first
+    ownership = await db.execute(text("""
+        SELECT id FROM deals
+        WHERE id = CAST(:id AS uuid) AND org_id = CAST(:org_id AS uuid)
+    """), {"id": deal_id, "org_id": org_id})
+    if not ownership.fetchone():
+        raise HTTPException(status_code=404, detail="Deal not found")
+
     res = await db.execute(text("""
         SELECT id, platform, status, call_title, attendees,
                duration_seconds, error_message, created_at, completed_at
