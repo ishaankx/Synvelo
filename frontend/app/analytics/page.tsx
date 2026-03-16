@@ -4,10 +4,9 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
   BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip,
-  PieChart, Pie, Legend, FunnelChart, Funnel, LabelList,
 } from 'recharts'
 import {
-  TrendingUp, DollarSign, AlertTriangle, Building2,
+  TrendingUp, DollarSign, Building2,
   Clock, Loader2, ChevronRight, Users, Zap,
 } from 'lucide-react'
 import { analyticsApi } from '@/lib/api'
@@ -68,12 +67,20 @@ const FUNNEL_COLORS: Record<string, string> = {
   'Closed Lost': '#ef4444',
 }
 
-const BUCKET_COLORS: Record<string, string> = {
-  'Unscored': '#374151',
-  '0-25%':    '#ef4444',
-  '25-50%':   '#f59e0b',
-  '50-75%':   '#6366f1',
-  '75-100%':  '#22c55e',
+const WIN_PROB_BUCKETS = ['0-25%', '25-50%', '50-75%', '75-100%'] as const
+
+const BUCKET_BAR_COLOR: Record<string, string> = {
+  '0-25%':   'bg-red-500',
+  '25-50%':  'bg-amber-500',
+  '50-75%':  'bg-indigo-500',
+  '75-100%': 'bg-emerald-500',
+}
+
+const BUCKET_TEXT_COLOR: Record<string, string> = {
+  '0-25%':   'text-red-600',
+  '25-50%':  'text-amber-600',
+  '50-75%':  'text-indigo-600',
+  '75-100%': 'text-emerald-600',
 }
 
 // ── KPI accent border colors ──────────────────────────────────────────────
@@ -133,17 +140,6 @@ const CustomBarTip = ({ active, payload }: any) => {
   )
 }
 
-const CustomPieTip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null
-  const d = payload[0]
-  return (
-    <div className="bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2 text-[11px]">
-      <p style={{ color: d.payload.fill }} className="font-semibold">{d.name}</p>
-      <p className="text-gray-500">{d.value} deal{d.value !== 1 ? 's' : ''}</p>
-    </div>
-  )
-}
-
 // ── Signal bar (inline) ────────────────────────────────────────────────────
 
 function SignalBar({ red, yellow, green }: { red: number; yellow: number; green: number }) {
@@ -193,11 +189,11 @@ export default function AnalyticsPage() {
     </div>
   )
 
-  const pieData = data.win_probability_distribution.map(b => ({
-    name:  b.bucket,
-    value: b.count,
-    fill:  BUCKET_COLORS[b.bucket] ?? '#6366f1',
-  }))
+  const bucketMap = Object.fromEntries(
+    data.win_probability_distribution.map(b => [b.bucket, b.count])
+  )
+  const totalScored = WIN_PROB_BUCKETS.reduce((s, b) => s + (bucketMap[b] || 0), 0)
+  const unscoredCount = bucketMap['Unscored'] || 0
 
   const funnelData = (data.stage_funnel || [])
     .filter(s => s.stage !== 'Closed Lost' && s.count > 0)
@@ -295,33 +291,52 @@ export default function AnalyticsPage() {
                 )}
               </div>
 
-              {/* Win prob pie */}
-              <div className="lg:col-span-2 syn-card p-6">
+              {/* Win prob distribution */}
+              <div className="lg:col-span-2 syn-card p-6 flex flex-col">
                 <p className="text-[12px] font-semibold text-gray-700 mb-1">
                   Win Probability Distribution
                 </p>
-                <p className="text-[12px] text-gray-500 mb-4">Deals grouped by win probability range</p>
-                {pieData.every(d => d.value === 0) ? (
-                  <div className="h-[360px] flex items-center justify-center">
-                    <p className="text-[11px] syn-text-muted">No data yet</p>
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={360}>
-                    <PieChart>
-                      <Pie
-                        data={pieData} cx="50%" cy="45%" innerRadius={55} outerRadius={78}
-                        dataKey="value" paddingAngle={2}
-                      >
-                        {pieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                      </Pie>
-                      <Tooltip content={<CustomPieTip />} />
-                      <Legend
-                        iconType="circle" iconSize={7}
-                        formatter={(v) => <span className="text-[11px] text-gray-500">{v}</span>}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+                <p className="text-[12px] text-gray-500 mb-6">Deals grouped by win probability range</p>
+
+                {/* Summary */}
+                <div className="flex items-baseline gap-2 mb-8">
+                  <span className="text-[32px] font-bold syn-text-primary leading-none">{totalScored}</span>
+                  <span className="text-[13px] syn-text-tertiary">scored deal{totalScored !== 1 ? 's' : ''}</span>
+                  {unscoredCount > 0 && (
+                    <span className="ml-auto text-[11px] syn-text-muted syn-surface-2 border syn-border px-2 py-0.5 rounded-md">
+                      +{unscoredCount} unscored
+                    </span>
+                  )}
+                </div>
+
+                {/* Bars */}
+                <div className="space-y-5 flex-1">
+                  {WIN_PROB_BUCKETS.map(bucket => {
+                    const count = bucketMap[bucket] || 0
+                    const pct = totalScored > 0 ? (count / totalScored) * 100 : 0
+                    return (
+                      <div key={bucket}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={cn('text-[12px] font-semibold', BUCKET_TEXT_COLOR[bucket])}>
+                            {bucket}
+                          </span>
+                          <span className="text-[12px] tabular-nums syn-text-secondary">
+                            {count} deal{count !== 1 ? 's' : ''}
+                            {totalScored > 0 && (
+                              <span className="syn-text-muted ml-1.5">({Math.round(pct)}%)</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={cn('h-full rounded-full transition-all duration-700', BUCKET_BAR_COLOR[bucket])}
+                            style={{ width: `${pct}%`, minWidth: count > 0 ? '6px' : '0' }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
