@@ -84,8 +84,8 @@ class Chunk(Base):
 class PulseAction(Base):
     __tablename__ = "pulse_actions"
 
-    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    deal_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("deals.id", ondelete="SET NULL"), nullable=True)
+    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    deal_id = mapped_column(UUID(as_uuid=True), ForeignKey("deals.id", ondelete="SET NULL"), nullable=True)
     query: Mapped[str] = mapped_column(Text)
     proposal: Mapped[Optional[dict]] = mapped_column(JSON)
     raw_answer: Mapped[Optional[str]] = mapped_column(Text)
@@ -94,7 +94,7 @@ class PulseAction(Base):
     decided_by: Mapped[Optional[str]] = mapped_column(String(200))
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    org_id = mapped_column(String, nullable=False, index=True)
+    org_id = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
 
 
 class ScoreHistory(Base):

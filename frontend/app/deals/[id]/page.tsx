@@ -64,7 +64,7 @@ interface EvidenceItem {
 function ScoreGauge({ prob, low, high }: { prob: number; low: number; high: number }) {
   const pct   = Math.round(prob * 100)
   const color = pct >= 65 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'
-  const angle = -135 + (pct / 100) * 270
+  const angle = -90 + (pct / 100) * 180
   return (
     <div className="flex flex-col items-center">
       <div className="relative w-36 h-20 overflow-hidden">
@@ -73,7 +73,7 @@ function ScoreGauge({ prob, low, high }: { prob: number; low: number; high: numb
           <path d="M12 68 A52 52 0 1 1 116 68" fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
             strokeDasharray={`${pct * 1.634} 163.4`} style={{ transition: 'stroke-dasharray 0.8s ease' }} />
           <g transform={`rotate(${angle} 64 68)`}>
-            <line x1="64" y1="68" x2="64" y2="22" stroke={color} strokeWidth="2" strokeLinecap="round" />
+            <line x1="64" y1="68" x2="64" y2="20" stroke={color} strokeWidth="2" strokeLinecap="round" />
             <circle cx="64" cy="68" r="3.5" fill={color} />
           </g>
         </svg>
@@ -104,8 +104,7 @@ function SentBadge({ score, label }: { score: number | null; label: string | nul
   )
 }
 
-type Tab      = 'overview' | 'meddic' | 'timeline' | 'documents' | 'capture'
-type RightTab = 'signals'  | 'qa'
+type RightTab = 'signals' | 'qa' | 'meddic' | 'timeline' | 'documents' | 'capture'
 
 function TabBtn({ active, onClick, children }: {
   active: boolean; onClick: () => void; children: React.ReactNode
@@ -133,8 +132,7 @@ export default function DealDetailPage() {
   const [history,   setHistory]   = useState<HistoryPoint[]>([])
   const [evidence,  setEvidence]  = useState<EvidenceItem[]>([])
 
-  const [tab,       setTab]       = useState<Tab>('overview')
-  const [rightTab,  setRightTab]  = useState<RightTab>('signals')
+  const [rightTab, setRightTab] = useState<RightTab>('signals')
 
   const [scoring,   setScoring]   = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -215,7 +213,6 @@ export default function DealDetailPage() {
   )
 
   const pct = deal.win_probability !== null ? Math.round(deal.win_probability * 100) : null
-  const scoreColor = pct === null ? 'syn-text-muted' : pct >= 65 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-600' : 'text-red-600'
 
   return (
     <div className="flex flex-col h-screen syn-bg">
@@ -264,35 +261,37 @@ export default function DealDetailPage() {
       {/* ── Body ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden flex min-h-0">
 
-        {/* LEFT — 400px */}
+        {/* LEFT — 400px: Score card + AI Assessment + Overview */}
         <div className="w-[400px] border-r syn-border flex flex-col flex-shrink-0">
 
           {/* Score card */}
-          <div className="p-5 border-b syn-border">
-            <div className="syn-card p-4">
-              <div className="flex items-start gap-5">
+          <div className="p-5 border-b syn-border flex-shrink-0">
+            <div className="syn-card p-4 space-y-3">
+              {/* Gauge row */}
+              <div className="flex justify-center">
                 {pct !== null
                   ? <ScoreGauge prob={deal.win_probability!} low={deal.probability_low!} high={deal.probability_high!} />
                   : <div className="w-36 h-20 flex items-center justify-center syn-surface-2 rounded-xl border syn-border">
                       <p className="text-[11px] syn-text-muted">Not scored</p>
                     </div>
                 }
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                  {[
-                    { icon: DollarSign,  label: 'Value',      val: `$${(deal.value || 0).toLocaleString()}` },
-                    { icon: Clock,       label: 'Est. Close', val: deal.time_to_close_days ? `${deal.time_to_close_days}d` : '—' },
-                    { icon: Building2,   label: 'Company',    val: deal.company || '—' },
-                    { icon: CheckCircle2, label: 'Owner',     val: deal.owner || '—' },
-                  ].map(({ icon: Icon, label, val }) => (
-                    <div key={label} className="syn-surface-2 border syn-border rounded-xl p-2.5">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Icon className="w-3 h-3 syn-text-muted" />
-                        <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">{label}</p>
-                      </div>
-                      <p className="text-[13px] font-medium text-gray-800 truncate">{val}</p>
+              </div>
+              {/* Info grid — full width, no truncation */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: DollarSign,   label: 'Value',      val: `$${(deal.value || 0).toLocaleString()}` },
+                  { icon: Clock,        label: 'Est. Close', val: deal.time_to_close_days ? `${deal.time_to_close_days}d` : '—' },
+                  { icon: Building2,    label: 'Company',    val: deal.company || '—' },
+                  { icon: CheckCircle2, label: 'Owner',      val: deal.owner || '—' },
+                ].map(({ icon: Icon, label, val }) => (
+                  <div key={label} className="syn-surface-2 border syn-border rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Icon className="w-3 h-3 syn-text-muted flex-shrink-0" />
+                      <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">{label}</p>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-[13px] font-semibold text-gray-800 break-words leading-snug">{val}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -305,145 +304,70 @@ export default function DealDetailPage() {
             )}
           </div>
 
-          {/* Tabs */}
-          <div className="px-3 py-2.5 border-b syn-border flex gap-1 flex-shrink-0 flex-wrap">
-            {([
-              ['overview',  'Overview'],
-              ['meddic',    'MEDDIC'],
-              ['timeline',  'Timeline'],
-              ['documents', 'Documents'],
-              ['capture',   'Calls'],
-            ] as const).map(([t, label]) => (
-              <TabBtn key={t} active={tab === t} onClick={() => setTab(t)}>{label}</TabBtn>
-            ))}
-          </div>
-
-          {/* Tab body */}
+          {/* Overview — scrollable, always visible */}
           <div className="flex-1 overflow-y-auto syn-scroll p-4">
-
-            {/* Overview */}
-            {tab === 'overview' && (
-              <div className="space-y-4">
-                {deal.risk_flags?.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Risk Flags</p>
-                    <div className="space-y-1.5">
-                      {deal.risk_flags.map((r, i) => (
-                        <div key={i} className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl p-3">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-[12px] syn-text-secondary leading-relaxed">{r}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {evidence.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Evidence</p>
-                    <div className="space-y-2">
-                      {evidence.map((e, i) => (
-                        <div key={i} className={cn(
-                          'rounded-xl border p-3',
-                          e.type === 'positive'
-                            ? 'bg-emerald-50 border-emerald-200'
-                            : 'bg-red-50 border-red-200'
-                        )}>
-                          <div className="flex justify-between mb-1.5">
-                            <span className={cn(
-                              'text-[11px] font-bold uppercase tracking-wider',
-                              e.type === 'positive' ? 'text-emerald-600' : 'text-red-600'
-                            )}>
-                              {e.type === 'positive' ? '▲' : '▼'} {e.impact > 0 ? '+' : ''}{Math.round(e.impact * 100)}pp
-                            </span>
-                            <span className="text-[11px] syn-text-muted">{e.filename}</span>
-                          </div>
-                          <p className="text-[12px] syn-text-secondary italic leading-relaxed">&ldquo;{e.excerpt}&rdquo;</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {!evidence.length && !deal.risk_flags?.length && (
-                  <div className="text-center py-10">
-                    <p className="text-[12px] syn-text-muted">Upload documents then score the deal to see evidence.</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* MEDDIC */}
-            {tab === 'meddic' && (
-              <MEDDICPanel meddic={deal.meddic} onExtract={handleScore} extracting={scoring} />
-            )}
-
-            {/* Timeline */}
-            {tab === 'timeline' && (
-              <div className="space-y-6">
-                <DealHealthTimeline history={history} />
-                <SentimentTimeline dealId={id} />
-              </div>
-            )}
-
-            {/* Documents */}
-            {tab === 'documents' && (
-              <div className="space-y-3">
-                <div {...getRootProps()}
-                  className={cn(
-                    'border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
-                    isDragActive
-                      ? 'border-brand-500/60 bg-brand-500/5'
-                      : 'syn-border hover:border-gray-300'
-                  )}>
-                  <input {...getInputProps()} />
-                  {uploading
-                    ? <div className="flex items-center justify-center gap-2 text-[12px] text-brand-700">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Uploading…
+            <div className="space-y-4">
+              {deal.risk_flags?.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Risk Flags</p>
+                  <div className="space-y-1.5">
+                    {deal.risk_flags.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl p-3">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-[12px] syn-text-secondary leading-relaxed">{r}</p>
                       </div>
-                    : <>
-                        <Upload className="w-5 h-5 mx-auto mb-2 syn-text-muted" />
-                        <p className="text-[12px] syn-text-tertiary">Drop PDF, audio, or text</p>
-                      </>
-                  }
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  {docs.map(d => (
-                    <div key={d.id} className="flex items-center gap-3 syn-card px-3.5 py-3">
-                      <div className={cn(
-                        'w-2 h-2 rounded-full flex-shrink-0',
-                        d.status === 'done' ? 'bg-emerald-500' : d.status === 'processing' ? 'bg-amber-500 animate-pulse' : 'bg-gray-300'
-                      )} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] text-gray-700 truncate">{d.filename}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-[11px] syn-text-muted capitalize">{d.source_type}</p>
-                          <SentBadge score={d.sentiment_score} label={d.sentiment_label} />
+              )}
+              {evidence.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Evidence</p>
+                  <div className="space-y-2">
+                    {evidence.map((e, i) => (
+                      <div key={i} className={cn(
+                        'rounded-xl border p-3',
+                        e.type === 'positive' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+                      )}>
+                        <div className="flex justify-between mb-1.5">
+                          <span className={cn(
+                            'text-[11px] font-bold uppercase tracking-wider',
+                            e.type === 'positive' ? 'text-emerald-600' : 'text-red-600'
+                          )}>
+                            {e.type === 'positive' ? '▲' : '▼'} {e.impact > 0 ? '+' : ''}{Math.round(e.impact * 100)}pp
+                          </span>
+                          <span className="text-[11px] syn-text-muted">{e.filename}</span>
                         </div>
+                        <p className="text-[12px] syn-text-secondary italic leading-relaxed">&ldquo;{e.excerpt}&rdquo;</p>
                       </div>
-                    </div>
-                  ))}
-                  {docs.length === 0 && (
-                    <p className="text-[12px] syn-text-muted text-center py-6">No documents yet.</p>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Call capture */}
-            {tab === 'capture' && <CallCaptureZone dealId={id} onComplete={load} />}
+              )}
+              {!evidence.length && !deal.risk_flags?.length && (
+                <div className="text-center py-10">
+                  <p className="text-[12px] syn-text-muted">Upload documents then score the deal to see evidence.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* RIGHT — flex-1 */}
+        {/* RIGHT — flex-1: all tabs */}
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Right tab bar */}
-          <div className="px-5 py-2.5 border-b syn-border flex gap-1 flex-shrink-0">
+          <div className="px-5 py-2.5 border-b syn-border flex gap-1 flex-shrink-0 flex-wrap">
             <TabBtn active={rightTab === 'signals'} onClick={() => setRightTab('signals')}>
               Signals {deal.signals?.length ? `(${deal.signals.length})` : ''}
             </TabBtn>
-            <TabBtn active={rightTab === 'qa'} onClick={() => setRightTab('qa')}>
-              Ask AI
+            <TabBtn active={rightTab === 'qa'}       onClick={() => setRightTab('qa')}>Ask AI</TabBtn>
+            <TabBtn active={rightTab === 'meddic'}   onClick={() => setRightTab('meddic')}>MEDDIC</TabBtn>
+            <TabBtn active={rightTab === 'timeline'} onClick={() => setRightTab('timeline')}>Timeline</TabBtn>
+            <TabBtn active={rightTab === 'documents'} onClick={() => setRightTab('documents')}>
+              Documents {docs.length > 0 ? `(${docs.length})` : ''}
             </TabBtn>
+            <TabBtn active={rightTab === 'capture'}  onClick={() => setRightTab('capture')}>Calls</TabBtn>
           </div>
 
           {/* Signals */}
@@ -461,6 +385,72 @@ export default function DealDetailPage() {
                   </div>
                 )
               }
+            </div>
+          )}
+
+          {/* MEDDIC */}
+          {rightTab === 'meddic' && (
+            <div className="flex-1 overflow-y-auto syn-scroll p-5">
+              <MEDDICPanel meddic={deal.meddic} onExtract={handleScore} extracting={scoring} />
+            </div>
+          )}
+
+          {/* Timeline */}
+          {rightTab === 'timeline' && (
+            <div className="flex-1 overflow-y-auto syn-scroll p-5 space-y-6">
+              <DealHealthTimeline history={history} />
+              <SentimentTimeline dealId={id} />
+            </div>
+          )}
+
+          {/* Documents */}
+          {rightTab === 'documents' && (
+            <div className="flex-1 overflow-y-auto syn-scroll p-5 space-y-3">
+              <div {...getRootProps()}
+                className={cn(
+                  'border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
+                  isDragActive
+                    ? 'border-brand-500/60 bg-brand-500/5'
+                    : 'syn-border hover:border-gray-300'
+                )}>
+                <input {...getInputProps()} />
+                {uploading
+                  ? <div className="flex items-center justify-center gap-2 text-[12px] text-brand-700">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Uploading…
+                    </div>
+                  : <>
+                      <Upload className="w-5 h-5 mx-auto mb-2 syn-text-muted" />
+                      <p className="text-[12px] syn-text-tertiary">Drop PDF, audio, or text</p>
+                    </>
+                }
+              </div>
+              <div className="space-y-1.5">
+                {docs.map(d => (
+                  <div key={d.id} className="flex items-center gap-3 syn-card px-3.5 py-3">
+                    <div className={cn(
+                      'w-2 h-2 rounded-full flex-shrink-0',
+                      d.status === 'done' ? 'bg-emerald-500' : d.status === 'processing' ? 'bg-amber-500 animate-pulse' : 'bg-gray-300'
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] text-gray-700 truncate">{d.filename}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[11px] syn-text-muted capitalize">{d.source_type}</p>
+                        <SentBadge score={d.sentiment_score} label={d.sentiment_label} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {docs.length === 0 && (
+                  <p className="text-[12px] syn-text-muted text-center py-6">No documents yet.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Calls */}
+          {rightTab === 'capture' && (
+            <div className="flex-1 overflow-y-auto syn-scroll p-5">
+              <CallCaptureZone dealId={id} onComplete={load} />
             </div>
           )}
 

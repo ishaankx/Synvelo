@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, TrendingUp, DollarSign, Clock, Building2, Loader2, X, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, TrendingUp, DollarSign, Clock, Building2, Loader2, X, Trash2, AlertTriangle, ChevronDown } from 'lucide-react'
 import { dealsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +19,12 @@ interface Deal {
 }
 
 const STAGES = ['Discovery', 'Qualification', 'Demo', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost']
+
+function fmtMoney(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`
+  return `$${n.toLocaleString()}`
+}
 const DELETE_PHRASE = 'Yes I want to delete this deal'
 
 function WinBar({ prob }: { prob: number | null }) {
@@ -182,6 +188,16 @@ export default function DealsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Deal | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // KPI card expand state
+  const [expandedCard, setExpandedCard] = useState<'pipeline' | 'weighted' | null>(null)
+
+  useEffect(() => {
+    if (!expandedCard) return
+    const handler = () => setExpandedCard(null)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [expandedCard])
+
   const load = useCallback(async () => {
     try {
       const res = await dealsApi.list()
@@ -260,17 +276,105 @@ export default function DealsPage() {
       {/* KPI Stats Strip */}
       <div className="flex-shrink-0 border-b syn-border px-6 py-4">
         <div className="grid grid-cols-4 gap-3">
-          {[
-            { label: 'Total Pipeline', val: `$${(totalValue / 1000).toFixed(0)}k`, border: 'border-l-brand-500' },
-            { label: 'Weighted',       val: `$${(weightedValue / 1000).toFixed(0)}k`, border: 'border-l-violet-500' },
-            { label: 'Avg Win Prob',   val: avgProb !== null ? `${Math.round(avgProb * 100)}%` : '\u2014', border: 'border-l-emerald-500' },
-            { label: 'Deals',          val: String(deals.length), border: 'border-l-amber-500' },
-          ].map(({ label, val, border }) => (
-            <div key={label} className={cn('bg-white border syn-border rounded-lg px-4 py-3 shadow-sm border-l-4', border)}>
-              <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">{label}</p>
-              <p className="text-[20px] font-bold syn-text-primary mt-1">{val}</p>
-            </div>
-          ))}
+
+          {/* Total Pipeline — expandable */}
+          <div className="relative" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setExpandedCard(expandedCard === 'pipeline' ? null : 'pipeline')}
+              className={cn(
+                'w-full bg-white border syn-border rounded-lg px-4 py-3 shadow-sm border-l-4 border-l-brand-500',
+                'text-left transition-colors hover:border-gray-300',
+                expandedCard === 'pipeline' && 'border-brand-300'
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">Total Pipeline</p>
+                <ChevronDown className={cn('w-3.5 h-3.5 syn-text-muted transition-transform duration-200', expandedCard === 'pipeline' && 'rotate-180')} />
+              </div>
+              <p className="text-[20px] font-bold syn-text-primary mt-1">{fmtMoney(totalValue)}</p>
+            </button>
+            {expandedCard === 'pipeline' && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border syn-border rounded-lg shadow-lg z-20">
+                <div className="p-2 max-h-[240px] overflow-y-auto syn-scroll">
+                  {deals.map(deal => (
+                    <div key={deal.id} className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-medium syn-text-primary truncate">{deal.name}</p>
+                        <p className="text-[11px] syn-text-tertiary truncate">{deal.company}</p>
+                      </div>
+                      <span className="text-[13px] font-semibold syn-text-secondary tabular-nums ml-3">
+                        {fmtMoney(deal.value || 0)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="border-t syn-border mt-1 pt-2 px-3 pb-1 flex justify-between items-center">
+                    <span className="text-[11px] syn-text-tertiary font-medium uppercase tracking-wider">Total</span>
+                    <span className="text-[13px] font-bold syn-text-primary tabular-nums">{fmtMoney(totalValue)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Weighted — expandable */}
+          <div className="relative" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setExpandedCard(expandedCard === 'weighted' ? null : 'weighted')}
+              className={cn(
+                'w-full bg-white border syn-border rounded-lg px-4 py-3 shadow-sm border-l-4 border-l-violet-500',
+                'text-left transition-colors hover:border-gray-300',
+                expandedCard === 'weighted' && 'border-violet-300'
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">Weighted</p>
+                <ChevronDown className={cn('w-3.5 h-3.5 syn-text-muted transition-transform duration-200', expandedCard === 'weighted' && 'rotate-180')} />
+              </div>
+              <p className="text-[20px] font-bold syn-text-primary mt-1">{fmtMoney(weightedValue)}</p>
+            </button>
+            {expandedCard === 'weighted' && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border syn-border rounded-lg shadow-lg z-20">
+                <div className="p-2 max-h-[240px] overflow-y-auto syn-scroll">
+                  {deals.map(deal => {
+                    const contrib = (deal.value || 0) * (deal.win_probability || 0)
+                    const pct = deal.win_probability !== null ? Math.round(deal.win_probability * 100) : null
+                    return (
+                      <div key={deal.id} className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] font-medium syn-text-primary truncate">{deal.name}</p>
+                          <p className="text-[11px] syn-text-tertiary truncate">
+                            {fmtMoney(deal.value || 0)} &times; {pct !== null ? `${pct}%` : '—'}
+                          </p>
+                        </div>
+                        <span className="text-[13px] font-semibold syn-text-secondary tabular-nums ml-3">
+                          {pct !== null ? fmtMoney(contrib) : '—'}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  <div className="border-t syn-border mt-1 pt-2 px-3 pb-1 flex justify-between items-center">
+                    <span className="text-[11px] syn-text-tertiary font-medium uppercase tracking-wider">Total</span>
+                    <span className="text-[13px] font-bold syn-text-primary tabular-nums">{fmtMoney(weightedValue)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Avg Win Prob — static */}
+          <div className="bg-white border syn-border rounded-lg px-4 py-3 shadow-sm border-l-4 border-l-emerald-500">
+            <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">Avg Win Prob</p>
+            <p className="text-[20px] font-bold syn-text-primary mt-1">
+              {avgProb !== null ? `${Math.round(avgProb * 100)}%` : '\u2014'}
+            </p>
+          </div>
+
+          {/* Deals — static */}
+          <div className="bg-white border syn-border rounded-lg px-4 py-3 shadow-sm border-l-4 border-l-amber-500">
+            <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">Deals</p>
+            <p className="text-[20px] font-bold syn-text-primary mt-1">{deals.length}</p>
+          </div>
+
         </div>
       </div>
 
