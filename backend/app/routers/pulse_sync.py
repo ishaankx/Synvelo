@@ -31,11 +31,11 @@ async def pulse_query(
 
     action = PulseAction(
         id=uuid.uuid4(),
-        deal_id=payload.deal_id,
+        deal_id=uuid.UUID(payload.deal_id) if payload.deal_id else None,
         query=payload.query,
         proposal=agent_result.get("proposal"),
         raw_answer=agent_result.get("raw_answer", ""),
-        org_id=org_id,
+        org_id=uuid.UUID(org_id) if isinstance(org_id, str) else org_id,
         status="pending",
     )
     db.add(action)
