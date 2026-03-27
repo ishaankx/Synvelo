@@ -43,11 +43,13 @@ class Deal(Base):
     brief_generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     last_scored_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    stage_entered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     org_id = mapped_column(String, nullable=False, index=True)
 
     documents: Mapped[List["Document"]] = relationship("Document", back_populates="deal", lazy="select")
     score_history: Mapped[List["ScoreHistory"]] = relationship("ScoreHistory", back_populates="deal", lazy="select")
     transcriptions: Mapped[List["CallTranscription"]] = relationship("CallTranscription", back_populates="deal", lazy="select")
+    stage_history: Mapped[List["DealStageHistory"]] = relationship("DealStageHistory", back_populates="deal", lazy="select")
 
 
 class Document(Base):
@@ -156,6 +158,22 @@ class DealReport(Base):
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     deal: Mapped["Deal"] = relationship("Deal", lazy="select")
+
+
+class DealStageHistory(Base):
+    __tablename__ = "deal_stage_history"
+
+    id = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    deal_id = mapped_column(UUID(as_uuid=False), ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    from_stage: Mapped[Optional[str]] = mapped_column(String(100))
+    to_stage: Mapped[str] = mapped_column(String(100), nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(200))
+    reason: Mapped[Optional[str]] = mapped_column(Text)
+    triggered_by: Mapped[str] = mapped_column(String(50), default="manual")
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+
+    deal: Mapped["Deal"] = relationship("Deal", back_populates="stage_history")
 
 
 async def init_db():

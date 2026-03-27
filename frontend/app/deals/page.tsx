@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { Plus, TrendingUp, DollarSign, Clock, Building2, Loader2, X, Trash2, AlertTriangle, ChevronDown } from 'lucide-react'
 import { dealsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import StagePipelineBar from '@/components/StagePipelineBar'
+import { type StageKey } from '@/lib/stage-utils'
 
 interface Deal {
   id: string
@@ -16,6 +18,7 @@ interface Deal {
   time_to_close_days: number | null
   last_scored_at: string | null
   created_at: string
+  days_in_current_stage?: number
 }
 
 const STAGES = ['Discovery', 'Qualification', 'Demo', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost']
@@ -35,23 +38,6 @@ function WinBar({ prob }: { prob: number | null }) {
     <div className="h-[2px] w-full bg-gray-200 rounded-full overflow-hidden">
       <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
     </div>
-  )
-}
-
-function StageChip({ stage }: { stage: string }) {
-  const colors: Record<string, string> = {
-    'Discovery':     'bg-gray-100 text-gray-600',
-    'Qualification': 'bg-blue-50 text-blue-700',
-    'Demo':          'bg-violet-50 text-violet-700',
-    'Proposal':      'bg-amber-50 text-amber-700',
-    'Negotiation':   'bg-orange-50 text-orange-700',
-    'Closed Won':    'bg-emerald-50 text-emerald-700',
-    'Closed Lost':   'bg-red-50 text-red-700',
-  }
-  return (
-    <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-md', colors[stage] || colors['Discovery'])}>
-      {stage}
-    </span>
   )
 }
 
@@ -440,7 +426,7 @@ export default function DealsPage() {
                         <h3 className="text-[14px] font-medium text-gray-900 truncate group-hover:text-brand-400 transition-colors">
                           {deal.name}
                         </h3>
-                        <StageChip stage={deal.stage} />
+                        <StagePipelineBar currentStage={deal.stage as StageKey} compact />
                       </div>
                       <div className="flex items-center gap-2">
                         <Building2 className="w-3 h-3 syn-text-muted flex-shrink-0" />
@@ -466,6 +452,11 @@ export default function DealsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {deal.days_in_current_stage != null && deal.days_in_current_stage > 0 && (
+                        <span className="text-[11px] syn-text-muted">
+                          {deal.days_in_current_stage}d in stage
+                        </span>
+                      )}
                       {deal.time_to_close_days && (
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3 syn-text-muted" />

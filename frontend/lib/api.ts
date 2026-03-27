@@ -55,6 +55,12 @@ export const dealsApi = {
   followup:     (id: string)            => api.post(`/deals/${id}/followup`),
   scoreHistory:      (id: string) => api.get(`/deals/${id}/score-history`),
   sentimentTimeline: (id: string) => api.get(`/deals/${id}/sentiment-timeline`),
+  // Stage pipeline
+  stageConfigs:    ()                     => api.get('/deals/stage-configs'),
+  transitionStage: (id: string, toStage: string, reason?: string, triggeredBy = 'manual') =>
+                     api.patch(`/deals/${id}/stage`, { to_stage: toStage, reason, triggered_by: triggeredBy }),
+  stageHistory:    (id: string)           => api.get(`/deals/${id}/stage/history`),
+  pipelineOverview: ()                    => api.get('/deals/pipeline/overview'),
 }
 
 export const ingestApi = {
