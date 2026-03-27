@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import init_db, engine
 from app.rate_limit import limiter, rate_limit_exceeded_handler
 from app.routers import deals, ingest, pulse_sync, transcription, analytics, reports, organisations
+from nexus.router import nexus_router
 
 from slowapi import _rate_limit_exceeded_handler  # noqa: F401
 from slowapi.errors import RateLimitExceeded
@@ -76,6 +77,9 @@ app.include_router(transcription.router,  prefix="/v1")
 app.include_router(analytics.router,      prefix="/v1")
 app.include_router(reports.router,        prefix="/v1")
 app.include_router(organisations.router,  prefix="/v1")
+
+# ── NEXUS — Revenue Simulation Engine ────────────────────────────────────────
+app.include_router(nexus_router, prefix="/api/nexus", tags=["nexus"])
 
 # ── Backward-compatible unversioned routes (remove after frontend migration) ──
 app.include_router(deals.router)

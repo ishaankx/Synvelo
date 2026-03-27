@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutGrid, Zap, Mic, BarChart3,
-  FileText, LogOut, ChevronRight,
+  FileText, LogOut, ChevronRight, Brain,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,12 @@ const NAV_GROUPS = [
     items: [
       { href: '/deals',      icon: LayoutGrid, label: 'Pipeline'    },
       { href: '/analytics',  icon: BarChart3,  label: 'Analytics'   },
+    ],
+  },
+  {
+    label: 'Simulation',
+    items: [
+      { href: '/nexus',      icon: Brain,      label: 'NEXUS'       },
     ],
   },
   {

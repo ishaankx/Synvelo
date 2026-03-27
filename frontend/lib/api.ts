@@ -102,4 +102,21 @@ export const reportsApi = {
   delete:      (reportId: string) => api.delete(`/reports/${reportId}`),
 }
 
+export const nexusApi = {
+  status:         ()                     => api.get('/api/nexus/status'),
+  extractAll:     ()                     => api.post('/api/nexus/extract-all'),
+  extractDeal:    (dealId: string, outcome: number) =>
+                    api.post('/api/nexus/extract-features', { deal_id: dealId, outcome }),
+  train:          (forceRetrain = false)  => api.post('/api/nexus/train', { force_retrain: forceRetrain }),
+  winDna:         ()                     => api.get('/api/nexus/win-dna'),
+  simulate:       (dealId: string, type = 'full', n = 500) =>
+                    api.post('/api/nexus/simulate', { deal_id: dealId, simulation_type: type, n_scenarios: n }),
+  simulations:    (dealId: string)       => api.get(`/api/nexus/simulations/${dealId}`),
+  generateArtifacts: (simId: string, dealId: string, types: string[]) =>
+                    api.post('/api/nexus/artifacts/generate', {
+                      simulation_id: simId, deal_id: dealId, artifact_types: types,
+                    }),
+  artifacts:      (dealId: string)       => api.get(`/api/nexus/artifacts/${dealId}`),
+}
+
 export default api
