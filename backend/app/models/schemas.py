@@ -109,3 +109,21 @@ class PulseActionResponse(BaseModel):
     proposal: Optional[PulseProposal] = None
     raw_answer: str
     status: str
+
+
+# ─── Stage pipeline schemas ──────────────────────────────────
+
+class StageTransitionRequest(BaseModel):
+    to_stage: str
+    reason: Optional[str] = None
+    triggered_by: str = "manual"
+
+
+class StageHistoryEntry(BaseModel):
+    id: str
+    deal_id: str
+    from_stage: Optional[str]
+    to_stage: str
+    changed_at: datetime
+    reason: Optional[str]
+    triggered_by: str

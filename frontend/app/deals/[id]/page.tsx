@@ -7,6 +7,7 @@ import {
   ArrowLeft, RefreshCw, FileText, Mail, TrendingUp,
   AlertTriangle, Clock, Building2, DollarSign,
   MessageSquare, Upload, Loader2, Send, CheckCircle2,
+  Target, Shield,
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { dealsApi, ingestApi } from '@/lib/api'
@@ -17,28 +18,33 @@ import DealBriefModal, { BriefData } from '@/components/DealBriefModal'
 import FollowupModal, { FollowupData } from '@/components/FollowupModal'
 import CallCaptureZone from '@/components/CallCaptureZone'
 import SentimentTimeline from '@/components/SentimentTimeline'
+import StageAdvancePanel from '@/components/StageAdvancePanel'
+import StageHistoryTimeline from '@/components/StageHistoryTimeline'
+import { type StageKey, type StageConfig, STAGE_COLORS, STAGE_ORDER, PROGRESSION_STAGES, isTerminal as isTerminalStage } from '@/lib/stage-utils'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface Deal {
-  id:                 string
-  name:               string
-  company:            string
-  stage:              string
-  value:              number
-  owner:              string
-  win_probability:    number | null
-  probability_low:    number | null
-  probability_high:   number | null
-  time_to_close_days: number | null
-  score_summary:      string | null
-  risk_flags:         string[]
-  signals:            Signal[]
-  meddic:             MEDDIC | null
-  brief:              BriefData | null
-  brief_generated_at: string | null
-  last_scored_at:     string | null
-  created_at:         string
+  id:                    string
+  name:                  string
+  company:               string
+  stage:                 string
+  value:                 number
+  owner:                 string
+  win_probability:       number | null
+  probability_low:       number | null
+  probability_high:      number | null
+  time_to_close_days:    number | null
+  score_summary:         string | null
+  risk_flags:            string[]
+  signals:               Signal[]
+  meddic:                MEDDIC | null
+  brief:                 BriefData | null
+  brief_generated_at:    string | null
+  last_scored_at:        string | null
+  created_at:            string
+  stage_entered_at:      string | null
+  days_in_current_stage: number
 }
 
 interface Doc {
@@ -104,7 +110,7 @@ function SentBadge({ score, label }: { score: number | null; label: string | nul
   )
 }
 
-type RightTab = 'signals' | 'qa' | 'meddic' | 'timeline' | 'documents' | 'capture'
+type RightTab = 'signals' | 'qa' | 'meddic' | 'timeline' | 'documents' | 'capture' | 'pipeline'
 
 function TabBtn({ active, onClick, children }: {
   active: boolean; onClick: () => void; children: React.ReactNode
@@ -118,6 +124,25 @@ function TabBtn({ active, onClick, children }: {
           : 'syn-text-tertiary hover:text-gray-700',
       )}>
       {children}
+    </button>
+  )
+}
+
+function PipelineTabBtn({ active, onClick, stage }: {
+  active: boolean; onClick: () => void; stage: StageKey
+}) {
+  const colors = STAGE_COLORS[stage]
+  return (
+    <button onClick={onClick}
+      className={cn(
+        'ml-auto px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all',
+        'flex items-center gap-1.5 border',
+        active
+          ? cn(colors.bg, colors.text, colors.border, 'shadow-sm')
+          : cn('border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:text-gray-700'),
+      )}>
+      <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', active ? colors.dot : 'bg-gray-300')} />
+      Pipeline
     </button>
   )
 }
@@ -147,6 +172,12 @@ export default function DealDetailPage() {
   const [qaHistory, setQaHistory] = useState<Array<{ q: string; a: string; sources: string[] }>>([])
   const [qaLoading, setQaLoading] = useState(false)
 
+  // Stage pipeline state
+  const [currentStage, setCurrentStage] = useState<StageKey>('Discovery')
+  const [daysInStage, setDaysInStage] = useState(0)
+  const [stageConfigs, setStageConfigs] = useState<Record<string, StageConfig>>({})
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
+
   const load = useCallback(async () => {
     if (!id || id === 'undefined') return
     const [dr, docsR, histR] = await Promise.all([
@@ -155,11 +186,30 @@ export default function DealDetailPage() {
       dealsApi.scoreHistory(id),
     ])
     setDeal(dr.data)
+    setCurrentStage((dr.data.stage || 'Discovery') as StageKey)
+    setDaysInStage(dr.data.days_in_current_stage || 0)
     setDocs(docsR.data || [])
     setHistory(histR.data || [])
   }, [id])
 
+  // Fetch stage configs once
+  useEffect(() => {
+    dealsApi.stageConfigs().then(r => {
+      const map: Record<string, StageConfig> = {}
+      for (const s of r.data.stages) map[s.key] = s
+      setStageConfigs(map)
+    }).catch(() => {})
+  }, [])
+
  useEffect(() => { if (id) load() }, [id, load])
+
+  function handleStageChanged(newStage: StageKey, _previousStage: StageKey) {
+    setCurrentStage(newStage)
+    setDaysInStage(0)
+    setHistoryRefreshKey(k => k + 1)
+    // Re-fetch deal to update all fields
+    load()
+  }
 
   const handleScore = async () => {
     setScoring(true)
@@ -227,7 +277,7 @@ export default function DealDetailPage() {
           </Link>
           <div>
             <h1 className="text-base font-semibold syn-text-primary leading-none">{deal.name}</h1>
-            <p className="text-[12px] syn-text-secondary mt-1">{deal.company} · {deal.stage}</p>
+            <p className="text-[12px] syn-text-secondary mt-1">{deal.company} · {currentStage}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -306,7 +356,9 @@ export default function DealDetailPage() {
 
           {/* Overview — scrollable, always visible */}
           <div className="flex-1 overflow-y-auto syn-scroll p-4">
-            <div className="space-y-4">
+            <div className="space-y-5">
+
+              {/* Risk flags */}
               {deal.risk_flags?.length > 0 && (
                 <div>
                   <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Risk Flags</p>
@@ -320,6 +372,8 @@ export default function DealDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* Evidence */}
               {evidence.length > 0 && (
                 <div>
                   <p className="text-[11px] font-semibold syn-text-tertiary uppercase tracking-[0.1em] mb-2">Evidence</p>
@@ -357,7 +411,7 @@ export default function DealDetailPage() {
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Right tab bar */}
-          <div className="px-5 py-2.5 border-b syn-border flex gap-1 flex-shrink-0 flex-wrap">
+          <div className="px-5 py-2.5 border-b syn-border flex items-center gap-1 flex-shrink-0 flex-wrap">
             <TabBtn active={rightTab === 'signals'} onClick={() => setRightTab('signals')}>
               Signals {deal.signals?.length ? `(${deal.signals.length})` : ''}
             </TabBtn>
@@ -368,6 +422,7 @@ export default function DealDetailPage() {
               Documents {docs.length > 0 ? `(${docs.length})` : ''}
             </TabBtn>
             <TabBtn active={rightTab === 'capture'}  onClick={() => setRightTab('capture')}>Calls</TabBtn>
+            <PipelineTabBtn active={rightTab === 'pipeline'} onClick={() => setRightTab('pipeline')} stage={currentStage} />
           </div>
 
           {/* Signals */}
@@ -451,6 +506,201 @@ export default function DealDetailPage() {
           {rightTab === 'capture' && (
             <div className="flex-1 overflow-y-auto syn-scroll p-5">
               <CallCaptureZone dealId={id} onComplete={load} />
+            </div>
+          )}
+
+          {/* Pipeline */}
+          {rightTab === 'pipeline' && (
+            <div className="flex-1 overflow-y-auto syn-scroll p-5 space-y-5">
+
+              {/* ── Visual pipeline rail ──────────────────────────────── */}
+              <div className="syn-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Target className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-[13px] font-semibold text-gray-800">Deal Progress</h3>
+                </div>
+
+                {/* Horizontal progress track */}
+                <div className="relative">
+                  {/* Background track */}
+                  <div className="absolute top-4 left-4 right-4 h-1 bg-gray-100 rounded-full" />
+                  {/* Filled track */}
+                  <div
+                    className="absolute top-4 left-4 h-1 rounded-full transition-all duration-700"
+                    style={{
+                      width: `${isTerminalStage(currentStage) && currentStage === 'Closed Lost' ? 100 : Math.max(0, (STAGE_ORDER.indexOf(currentStage) / (PROGRESSION_STAGES.length - 1)) * 100)}%`,
+                      maxWidth: 'calc(100% - 32px)',
+                      background: isTerminalStage(currentStage)
+                        ? currentStage === 'Closed Won' ? '#22c55e' : '#ef4444'
+                        : `linear-gradient(90deg, ${STAGE_COLORS[PROGRESSION_STAGES[0]].dot.replace('bg-', 'var(--tw-') || '#6366f1'}, ${STAGE_COLORS[currentStage].dot.replace('bg-', 'var(--tw-') || '#6366f1'})`,
+                      backgroundColor: STAGE_COLORS[currentStage].dot.includes('indigo') ? '#6366f1'
+                        : STAGE_COLORS[currentStage].dot.includes('blue') ? '#3b82f6'
+                        : STAGE_COLORS[currentStage].dot.includes('cyan') ? '#06b6d4'
+                        : STAGE_COLORS[currentStage].dot.includes('amber') ? '#f59e0b'
+                        : STAGE_COLORS[currentStage].dot.includes('pink') ? '#ec4899'
+                        : STAGE_COLORS[currentStage].dot.includes('green') ? '#22c55e'
+                        : '#ef4444',
+                    }}
+                  />
+
+                  {/* Stage nodes */}
+                  <div className="relative flex justify-between">
+                    {PROGRESSION_STAGES.map((stage) => {
+                      const stageIdx = STAGE_ORDER.indexOf(stage)
+                      const currentIdx = STAGE_ORDER.indexOf(currentStage)
+                      const isPast = !isTerminalStage(currentStage) && currentIdx > stageIdx
+                      const isCurrent = currentStage === stage
+                      const colors = STAGE_COLORS[stage]
+
+                      return (
+                        <div key={stage} className="flex flex-col items-center gap-1.5 relative z-10">
+                          <div className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300',
+                            isCurrent && cn('ring-4 ring-offset-2', colors.dot, colors.border.replace('border', 'ring')),
+                            isPast && 'bg-gray-300',
+                            !isCurrent && !isPast && 'bg-white border-2 border-gray-200',
+                            isCurrent && colors.dot,
+                          )}>
+                            {isPast && <CheckCircle2 className="w-4 h-4 text-white" />}
+                            {isCurrent && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                          </div>
+                          <span className={cn(
+                            'text-[11px] font-medium whitespace-nowrap',
+                            isCurrent ? cn(colors.text, 'font-semibold') : isPast ? 'text-gray-400' : 'text-gray-300',
+                          )}>
+                            {stage}
+                          </span>
+                          {isCurrent && daysInStage !== undefined && (
+                            <span className="text-[10px] text-gray-400">{daysInStage}d</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Terminal badge if applicable */}
+                {isTerminalStage(currentStage) && (
+                  <div className={cn(
+                    'mt-5 flex items-center justify-center gap-2 py-2.5 rounded-lg',
+                    currentStage === 'Closed Won' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200',
+                  )}>
+                    <CheckCircle2 className={cn('w-4 h-4', currentStage === 'Closed Won' ? 'text-green-600' : 'text-red-500')} />
+                    <span className={cn('text-[13px] font-semibold', currentStage === 'Closed Won' ? 'text-green-700' : 'text-red-600')}>
+                      {currentStage}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Current stage detail card ─────────────────────────── */}
+              {(() => {
+                const config = stageConfigs[currentStage]
+                if (!config) return null
+                const colors = STAGE_COLORS[currentStage]
+                const isOverdue = config.typical_duration_days > 0 && daysInStage > config.typical_duration_days
+
+                return (
+                  <div className={cn('rounded-xl border-2 overflow-hidden', colors.border)}>
+                    {/* Header band */}
+                    <div className={cn('px-5 py-3 flex items-center justify-between', colors.bg)}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn('w-3 h-3 rounded-full', colors.dot)} />
+                        <span className={cn('text-[14px] font-bold', colors.text)}>{currentStage}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {daysInStage !== undefined && (
+                          <div className={cn(
+                            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold',
+                            isOverdue
+                              ? 'bg-red-100 text-red-700 border border-red-200'
+                              : 'bg-white/70 text-gray-600 border border-gray-200',
+                          )}>
+                            <Clock className="w-3 h-3" />
+                            {daysInStage}d / {config.typical_duration_days || '\u221e'}d
+                          </div>
+                        )}
+                        {config.ai_win_prob_floor !== undefined && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/70 text-gray-600 border border-gray-200 text-[11px] font-semibold">
+                            <TrendingUp className="w-3 h-3" />
+                            {config.ai_win_prob_floor}%–{config.ai_win_prob_ceiling}%
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="px-5 py-4 bg-white">
+                      <p className="text-[12px] text-gray-600 leading-relaxed mb-4">{config.description}</p>
+
+                      {/* Exit criteria checklist */}
+                      {config.exit_criteria?.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <Shield className="w-3.5 h-3.5 text-gray-400" />
+                            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">
+                              Exit Criteria
+                            </p>
+                          </div>
+                          <div className="grid gap-1.5">
+                            {config.exit_criteria.map((criterion: string, i: number) => (
+                              <div key={i} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                                <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0 mt-0.5" />
+                                <span className="text-[12px] text-gray-600 leading-snug">{criterion}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* ── Stage actions ──────────────────────────────────────── */}
+              {Object.keys(stageConfigs).length > 0 && !isTerminalStage(currentStage) && (
+                <div className="space-y-3">
+                  <StageAdvancePanel
+                    deal={{ id: deal.id, stage: currentStage, days_in_current_stage: daysInStage }}
+                    stageConfigs={stageConfigs}
+                    onStageChanged={handleStageChanged}
+                    hideStageInfo
+                  />
+                </div>
+              )}
+
+              {/* Terminal state info */}
+              {isTerminalStage(currentStage) && stageConfigs[currentStage] && (
+                <div className={cn(
+                  'rounded-xl border p-5',
+                  currentStage === 'Closed Won' ? 'bg-green-50/50 border-green-200' : 'bg-red-50/50 border-red-200',
+                )}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className={cn('w-5 h-5', currentStage === 'Closed Won' ? 'text-green-600' : 'text-red-500')} />
+                    <span className={cn('font-semibold text-[14px]', currentStage === 'Closed Won' ? 'text-green-800' : 'text-red-700')}>
+                      {currentStage}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-gray-500">{stageConfigs[currentStage]?.description}</p>
+                  {currentStage === 'Closed Lost' && (
+                    <p className="text-[11px] text-gray-400 mt-3 pt-3 border-t border-red-100">
+                      To re-engage this account, create a new deal. Stage history is preserved.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Stage history timeline ─────────────────────────────── */}
+              <div className="syn-card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <h3 className="text-[13px] font-semibold text-gray-800">Stage History</h3>
+                </div>
+                <StageHistoryTimeline
+                  dealId={deal.id}
+                  refreshTrigger={historyRefreshKey}
+                />
+              </div>
             </div>
           )}
 
