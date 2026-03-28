@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_org_id
+from app.services.activity_service import log_activity
 
 from .schemas import (
     TrainModelRequest,
@@ -313,6 +314,13 @@ async def _run_training(db: AsyncSession, org_id: str, sample_count: int) -> dic
     )
     await db.commit()
 
+    await log_activity(
+        org_id=org_id, event_type="nexus_model_trained", entity_type="nexus",
+        entity_name=f"NEXUS Model v{next_version}",
+        new_value={"version": next_version, "n_training_samples": metrics["n_training_samples"],
+                   "cv_auc": metrics["cv_auc_mean"], "cv_f1": metrics["cv_f1_mean"]},
+    )
+
     return {
         "status": "ready",
         "version": next_version,
@@ -482,6 +490,21 @@ async def run_simulation(
     )
     sim_id = str(sim_id_r.scalar())
 
+    # Fetch deal name for activity log
+    deal_name_r = await db.execute(
+        text("SELECT name FROM deals WHERE id = CAST(:id AS uuid)"), {"id": payload.deal_id}
+    )
+    deal_name_row = deal_name_r.fetchone()
+
+    await log_activity(
+        org_id=org_id, event_type="nexus_simulation_run", entity_type="deal",
+        entity_id=payload.deal_id,
+        entity_name=deal_name_row.name if deal_name_row else None,
+        new_value={"simulation_id": sim_id, "simulation_type": payload.simulation_type.value,
+                   "n_scenarios": payload.n_scenarios,
+                   "baseline_win_prob": sim_result["baseline_win_prob"]},
+    )
+
     return SimulationResponse(
         simulation_id=sim_id,
         deal_id=payload.deal_id,
@@ -638,6 +661,17 @@ async def generate_artifacts(
             ))
 
     await db.commit()
+
+    ready_types = [a.artifact_type for a in artifacts if a.status == "ready"]
+    if ready_types:
+        await log_activity(
+            org_id=org_id, event_type="nexus_artifacts_generated", entity_type="deal",
+            entity_id=payload.deal_id,
+            entity_name=deal_data.get("name"),
+            new_value={"artifact_types": ready_types, "count": len(ready_types)},
+            metadata={"simulation_id": payload.simulation_id},
+        )
+
     return artifacts
 
 

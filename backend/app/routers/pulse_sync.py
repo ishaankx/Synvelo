@@ -7,6 +7,7 @@ from app.database import get_db, PulseAction, Deal
 from app.models.schemas import PulseQuery, PulseActionResponse, PulseProposal
 from app.services.erp_mock import run_pulse_sync
 from app.dependencies import get_org_id
+from app.services.activity_service import log_activity
 
 router = APIRouter(prefix="/pulse", tags=["pulse-sync"])
 
@@ -57,6 +58,13 @@ async def pulse_query(
             requires_approval=True,
         )
 
+    await log_activity(
+        org_id=org_id, event_type="pulse_query", entity_type="pulse",
+        entity_id=str(action.id), entity_name=payload.query[:120],
+        new_value={"query": payload.query[:200]},
+        metadata={"deal_id": payload.deal_id},
+    )
+
     return PulseActionResponse(
         action_id=str(action.id),
         query=payload.query,
@@ -91,6 +99,14 @@ async def approve_action(
         "org_id": org_id,
     })
     await db.commit()
+
+    await log_activity(
+        org_id=org_id, event_type="pulse_approved", entity_type="pulse",
+        entity_id=action_id,
+        new_value={"decision": body.get("decision", "approved"),
+                   "decided_by": body.get("user", "demo_user")},
+    )
+
     return {"action_id": action_id, "status": body.get("decision", "approved")}
 
 

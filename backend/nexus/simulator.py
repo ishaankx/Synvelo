@@ -27,7 +27,9 @@ ACTION_SPACE = {
         "description": "Involve economic buyer immediately",
     },
     "send_proposal_fast": {
-        "param": "days_first_call_to_proposal",
+        # Sets both legacy and new column for model compatibility
+        "param": "discovery_to_proposal_days",
+        "also_set": "days_first_call_to_proposal",
         "values": [1, 2, 3, 5, 7, 14],
         "description": "Send proposal in {val} day(s)",
     },
@@ -86,13 +88,18 @@ class ScenarioSimulator:
         # Single-action scenarios
         for action_type, action_config in ACTION_SPACE.items():
             param = action_config["param"]
+            also_set = action_config.get("also_set")
             for val in action_config["values"]:
                 scenario_id += 1
                 modified = {**base_features}
                 if isinstance(val, bool):
                     modified[param] = int(val)
+                    if also_set:
+                        modified[also_set] = int(val)
                 else:
                     modified[param] = float(val)
+                    if also_set:
+                        modified[also_set] = float(val)
 
                 current_margin = float(base_features.get("erp_margin_available_pct", 0.35))
                 if action_type == "offer_discount":

@@ -10,6 +10,7 @@ from app.database import get_db
 from app.services.embeddings import ingest_file
 from app.dependencies import get_org_id
 from app.config import settings
+from app.services.activity_service import log_activity
 
 logger = logging.getLogger("synvelo.ingest")
 
@@ -100,6 +101,18 @@ async def upload_document(
     # Ingest: extract text, run sentiment, chunk, embed
     chunks_created = await ingest_file(
         file_path, original_name, source_type, deal_id, doc_id, db
+    )
+
+    # Fetch deal name for activity log
+    dn = await db.execute(text("SELECT name FROM deals WHERE id = CAST(:id AS uuid)"), {"id": deal_id})
+    deal_row = dn.fetchone()
+
+    await log_activity(
+        org_id=org_id, event_type="document_uploaded", entity_type="document",
+        entity_id=doc_id, entity_name=original_name,
+        new_value={"source_type": source_type, "chunks_created": chunks_created,
+                   "file_size_bytes": len(content)},
+        metadata={"deal_id": deal_id, "deal_name": deal_row.name if deal_row else None},
     )
 
     return {

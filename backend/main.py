@@ -8,7 +8,7 @@ from sqlalchemy import text as sa_text
 from app.config import settings
 from app.database import init_db, engine
 from app.rate_limit import limiter, rate_limit_exceeded_handler
-from app.routers import deals, ingest, pulse_sync, transcription, analytics, reports, organisations
+from app.routers import deals, ingest, pulse_sync, transcription, analytics, reports, organisations, activity
 from nexus.router import nexus_router
 
 from slowapi import _rate_limit_exceeded_handler  # noqa: F401
@@ -77,6 +77,7 @@ app.include_router(transcription.router,  prefix="/v1")
 app.include_router(analytics.router,      prefix="/v1")
 app.include_router(reports.router,        prefix="/v1")
 app.include_router(organisations.router,  prefix="/v1")
+app.include_router(activity.router,       prefix="/v1")
 
 # ── NEXUS — Revenue Simulation Engine ────────────────────────────────────────
 app.include_router(nexus_router, prefix="/api/nexus", tags=["nexus"])
@@ -89,3 +90,4 @@ app.include_router(transcription.router)
 app.include_router(analytics.router)
 app.include_router(reports.router)
 app.include_router(organisations.router)
+app.include_router(activity.router)
