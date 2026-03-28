@@ -1,15 +1,17 @@
 """
 Single source of truth for deal stage metadata.
-Used by the API (validation/recommendations) and serialized to the frontend.
+Used by: stage router, scoring service, NEXUS feature extractor, NEXUS simulator.
 """
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 STAGE_ORDER = [
     "Discovery", "Qualification", "Demo", "Proposal",
     "Negotiation", "Closed Won", "Closed Lost",
 ]
+PROGRESSION_STAGES = ["Discovery", "Qualification", "Demo", "Proposal", "Negotiation"]
+TERMINAL_STAGES = {"Closed Won", "Closed Lost"}
 
 
 class StageConfig(TypedDict):
@@ -187,3 +189,26 @@ def can_transition(from_stage: str, to_stage: str) -> tuple[bool, str]:
     if to_stage not in STAGE_CONFIGS:
         return False, f"Unknown target stage '{to_stage}'."
     return True, "ok"
+
+
+def compute_stage_velocity(stage_durations: dict[str, int]) -> float:
+    """
+    Composite velocity score: mean of (actual_days / typical_days) per traversed stage.
+    < 1.0 = faster than average (correlated with wins)
+    > 1.0 = slower than average (correlated with losses)
+    Returns 1.0 (neutral) if no stage data available.
+    """
+    total_ratio = 0.0
+    count = 0
+    for stage, actual_days in stage_durations.items():
+        typical = STAGE_CONFIGS.get(stage, {}).get("typical_duration_days", 0)
+        if typical > 0:
+            total_ratio += actual_days / typical
+            count += 1
+    return round(total_ratio / count, 4) if count > 0 else 1.0
+
+
+def encode_stage_health(stage_health: Optional[str]) -> float:
+    """Encode stage_health string as numeric for ML: on_track=1.0, at_risk=0.5, stalled=0.0"""
+    mapping = {"on_track": 1.0, "at_risk": 0.5, "stalled": 0.0}
+    return mapping.get(stage_health or "", 0.5)

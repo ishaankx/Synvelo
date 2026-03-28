@@ -133,6 +133,21 @@
   html {
     @apply font-sans;
   }
+
+  /* Interactive elements always show pointer cursor */
+  button,
+  select,
+  [role="button"],
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+  a[href] {
+    cursor: pointer;
+  }
 }
 
 /* ── Synvelo utility classes ───────────────────────────────────────────── */

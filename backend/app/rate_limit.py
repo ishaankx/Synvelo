@@ -34,9 +34,24 @@ def _get_rate_limit_key(request: Request) -> str:
     return get_remote_address(request)
 
 
+def _safe_storage_uri() -> str:
+    """Use Redis in production, fall back to in-memory for local dev."""
+    if settings.is_production:
+        return settings.redis_url
+    try:
+        import redis
+        r = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=1)
+        r.ping()
+        r.close()
+        return settings.redis_url
+    except Exception:
+        logger.info("Redis unavailable — using in-memory rate limiter")
+        return "memory://"
+
+
 limiter = Limiter(
     key_func=_get_rate_limit_key,
-    storage_uri=settings.redis_url,
+    storage_uri=_safe_storage_uri(),
     default_limits=["100/minute"],
 )
 

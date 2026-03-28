@@ -7,10 +7,12 @@ import {
   ArrowLeft, RefreshCw, FileText, Mail, TrendingUp,
   AlertTriangle, Clock, Building2, DollarSign,
   MessageSquare, Upload, Loader2, Send, CheckCircle2,
-  Target, Shield,
+  Target, Search, Star, MonitorPlay, FileCheck2, Handshake,
+  Banknote, CalendarCheck, User, Pencil,
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { dealsApi, ingestApi } from '@/lib/api'
+import { fmtFullMoney, currencySymbol } from '@/lib/currency'
 import SignalCards, { Signal } from '@/components/SignalCards'
 import MEDDICPanel, { MEDDIC } from '@/components/MEDDICPanel'
 import DealHealthTimeline, { HistoryPoint } from '@/components/DealHealthTimeline'
@@ -19,7 +21,9 @@ import FollowupModal, { FollowupData } from '@/components/FollowupModal'
 import CallCaptureZone from '@/components/CallCaptureZone'
 import SentimentTimeline from '@/components/SentimentTimeline'
 import StageAdvancePanel from '@/components/StageAdvancePanel'
+import ExitCriteriaChecklist from '@/components/ExitCriteriaChecklist'
 import StageHistoryTimeline from '@/components/StageHistoryTimeline'
+import JourneyReportPanel from '@/components/JourneyReportPanel'
 import { type StageKey, type StageConfig, STAGE_COLORS, STAGE_ORDER, PROGRESSION_STAGES, isTerminal as isTerminalStage } from '@/lib/stage-utils'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -30,6 +34,7 @@ interface Deal {
   company:               string
   stage:                 string
   value:                 number
+  currency:              string
   owner:                 string
   win_probability:       number | null
   probability_low:       number | null
@@ -110,7 +115,7 @@ function SentBadge({ score, label }: { score: number | null; label: string | nul
   )
 }
 
-type RightTab = 'signals' | 'qa' | 'meddic' | 'timeline' | 'documents' | 'capture' | 'pipeline'
+type RightTab = 'signals' | 'qa' | 'meddic' | 'timeline' | 'documents' | 'capture' | 'pipeline' | 'journey'
 
 function TabBtn({ active, onClick, children }: {
   active: boolean; onClick: () => void; children: React.ReactNode
@@ -135,15 +140,99 @@ function PipelineTabBtn({ active, onClick, stage }: {
   return (
     <button onClick={onClick}
       className={cn(
-        'ml-auto px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all',
+        'px-3.5 py-1.5 text-[12px] font-bold rounded-lg transition-all',
         'flex items-center gap-1.5 border',
         active
-          ? cn(colors.bg, colors.text, colors.border, 'shadow-sm')
-          : cn('border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:text-gray-700'),
+          ? cn(colors.bg, colors.text, colors.border, 'shadow-sm ring-1', colors.border.replace('border-', 'ring-'))
+          : cn('border-indigo-200 bg-indigo-50/60 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300'),
       )}>
-      <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', active ? colors.dot : 'bg-gray-300')} />
+      <span className={cn('w-2 h-2 rounded-full flex-shrink-0', active ? colors.dot : 'bg-indigo-400')} />
       Pipeline
     </button>
+  )
+}
+
+// ── Editable Info Grid ─────────────────────────────────────────────────────
+
+function EditableInfoGrid({ deal, onUpdate }: {
+  deal: Deal
+  onUpdate: (fields: Partial<Deal>) => void
+}) {
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const fields = [
+    { key: 'value',              icon: Banknote,      label: 'Value',      val: fmtFullMoney(deal.value || 0, deal.currency),                 type: 'number' as const },
+    { key: 'time_to_close_days', icon: CalendarCheck,  label: 'Est. Close', val: deal.time_to_close_days ? `${deal.time_to_close_days}d` : '—', type: 'number' as const },
+    { key: 'company',            icon: Building2,      label: 'Company',    val: deal.company || '—',                                          type: 'text' as const },
+    { key: 'owner',              icon: User,           label: 'Owner',      val: deal.owner || '—',                                            type: 'text' as const },
+  ]
+
+  function startEdit(key: string) {
+    setEditing(key)
+    const raw = (deal as any)[key]
+    setDraft(raw != null ? String(raw) : '')
+  }
+
+  async function saveEdit(key: string, type: 'number' | 'text') {
+    const trimmed = draft.trim()
+    if (!trimmed) { setEditing(null); return }
+    const parsed = type === 'number' ? Number(trimmed) : trimmed
+    if (type === 'number' && isNaN(parsed as number)) { setEditing(null); return }
+
+    setSaving(true)
+    try {
+      const res = await dealsApi.update(deal.id, { [key]: parsed })
+      onUpdate(res.data)
+    } catch {
+      // silent
+    } finally {
+      setSaving(false)
+      setEditing(null)
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {fields.map(({ key, icon: Icon, label, val, type }) => (
+        <div key={key} className="flex items-center gap-3.5 py-1 group/info">
+          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <Icon className="w-[18px] h-[18px] text-gray-600" strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">{label}</p>
+              {editing !== key && (
+                <button
+                  onClick={() => startEdit(key)}
+                  className="opacity-0 group-hover/info:opacity-100 transition-opacity p-0.5 rounded hover:bg-gray-100"
+                >
+                  <Pencil className="w-2.5 h-2.5 text-gray-400" />
+                </button>
+              )}
+            </div>
+            {editing === key ? (
+              <input
+                autoFocus
+                type={type}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveEdit(key, type)
+                  if (e.key === 'Escape') setEditing(null)
+                }}
+                onBlur={() => saveEdit(key, type)}
+                disabled={saving}
+                className="w-full text-[13px] font-bold text-gray-800 bg-white border border-indigo-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            ) : (
+              <p className="text-[14px] font-bold text-gray-800 break-words leading-tight">{val}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -157,7 +246,7 @@ export default function DealDetailPage() {
   const [history,   setHistory]   = useState<HistoryPoint[]>([])
   const [evidence,  setEvidence]  = useState<EvidenceItem[]>([])
 
-  const [rightTab, setRightTab] = useState<RightTab>('signals')
+  const [rightTab, setRightTab] = useState<RightTab>('pipeline')
 
   const [scoring,   setScoring]   = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -318,31 +407,27 @@ export default function DealDetailPage() {
           <div className="p-5 border-b syn-border flex-shrink-0">
             <div className="syn-card p-4 space-y-3">
               {/* Gauge row */}
-              <div className="flex justify-center">
-                {pct !== null
-                  ? <ScoreGauge prob={deal.win_probability!} low={deal.probability_low!} high={deal.probability_high!} />
-                  : <div className="w-36 h-20 flex items-center justify-center syn-surface-2 rounded-xl border syn-border">
-                      <p className="text-[11px] syn-text-muted">Not scored</p>
+              <div className="flex flex-col items-center">
+                <div className="relative group/gauge">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold text-center mb-2">Win Probability</p>
+                  {pct !== null
+                    ? <ScoreGauge prob={deal.win_probability!} low={deal.probability_low!} high={deal.probability_high!} />
+                    : <div className="w-36 h-20 flex items-center justify-center syn-surface-2 rounded-xl border syn-border">
+                        <p className="text-[11px] syn-text-muted">Not scored</p>
+                      </div>
+                  }
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 opacity-0 translate-y-1 group-hover/gauge:opacity-100 group-hover/gauge:translate-y-0 transition-all duration-200 z-50">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-lg px-3.5 py-2.5">
+                      <p className="text-[11px] font-semibold text-gray-700 mb-1">AI Win Probability</p>
+                      <p className="text-[10.5px] text-gray-500 leading-relaxed">
+                        Likelihood of closing this deal based on AI analysis of deal signals, engagement patterns, and historical outcomes.
+                      </p>
                     </div>
-                }
-              </div>
-              {/* Info grid — full width, no truncation */}
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { icon: DollarSign,   label: 'Value',      val: `$${(deal.value || 0).toLocaleString()}` },
-                  { icon: Clock,        label: 'Est. Close', val: deal.time_to_close_days ? `${deal.time_to_close_days}d` : '—' },
-                  { icon: Building2,    label: 'Company',    val: deal.company || '—' },
-                  { icon: CheckCircle2, label: 'Owner',      val: deal.owner || '—' },
-                ].map(({ icon: Icon, label, val }) => (
-                  <div key={label} className="syn-surface-2 border syn-border rounded-xl p-3">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Icon className="w-3 h-3 syn-text-muted flex-shrink-0" />
-                      <p className="text-[11px] syn-text-tertiary uppercase tracking-wider font-medium">{label}</p>
-                    </div>
-                    <p className="text-[13px] font-semibold text-gray-800 break-words leading-snug">{val}</p>
                   </div>
-                ))}
+                </div>
               </div>
+              {/* Editable info grid */}
+              <EditableInfoGrid deal={deal} onUpdate={(updated) => setDeal({ ...deal, ...updated })} />
             </div>
 
             {/* AI Assessment */}
@@ -412,6 +497,7 @@ export default function DealDetailPage() {
 
           {/* Right tab bar */}
           <div className="px-5 py-2.5 border-b syn-border flex items-center gap-1 flex-shrink-0 flex-wrap">
+            <PipelineTabBtn active={rightTab === 'pipeline'} onClick={() => setRightTab('pipeline')} stage={currentStage} />
             <TabBtn active={rightTab === 'signals'} onClick={() => setRightTab('signals')}>
               Signals {deal.signals?.length ? `(${deal.signals.length})` : ''}
             </TabBtn>
@@ -422,7 +508,7 @@ export default function DealDetailPage() {
               Documents {docs.length > 0 ? `(${docs.length})` : ''}
             </TabBtn>
             <TabBtn active={rightTab === 'capture'}  onClick={() => setRightTab('capture')}>Calls</TabBtn>
-            <PipelineTabBtn active={rightTab === 'pipeline'} onClick={() => setRightTab('pipeline')} stage={currentStage} />
+            <TabBtn active={rightTab === 'journey'}  onClick={() => setRightTab('journey')}>Journey</TabBtn>
           </div>
 
           {/* Signals */}
@@ -515,69 +601,94 @@ export default function DealDetailPage() {
 
               {/* ── Visual pipeline rail ──────────────────────────────── */}
               <div className="syn-card p-5">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-5">
                   <Target className="w-4 h-4 text-gray-400" />
                   <h3 className="text-[13px] font-semibold text-gray-800">Deal Progress</h3>
                 </div>
 
-                {/* Horizontal progress track */}
-                <div className="relative">
-                  {/* Background track */}
-                  <div className="absolute top-4 left-4 right-4 h-1 bg-gray-100 rounded-full" />
-                  {/* Filled track */}
-                  <div
-                    className="absolute top-4 left-4 h-1 rounded-full transition-all duration-700"
-                    style={{
-                      width: `${isTerminalStage(currentStage) && currentStage === 'Closed Lost' ? 100 : Math.max(0, (STAGE_ORDER.indexOf(currentStage) / (PROGRESSION_STAGES.length - 1)) * 100)}%`,
-                      maxWidth: 'calc(100% - 32px)',
-                      background: isTerminalStage(currentStage)
-                        ? currentStage === 'Closed Won' ? '#22c55e' : '#ef4444'
-                        : `linear-gradient(90deg, ${STAGE_COLORS[PROGRESSION_STAGES[0]].dot.replace('bg-', 'var(--tw-') || '#6366f1'}, ${STAGE_COLORS[currentStage].dot.replace('bg-', 'var(--tw-') || '#6366f1'})`,
-                      backgroundColor: STAGE_COLORS[currentStage].dot.includes('indigo') ? '#6366f1'
-                        : STAGE_COLORS[currentStage].dot.includes('blue') ? '#3b82f6'
-                        : STAGE_COLORS[currentStage].dot.includes('cyan') ? '#06b6d4'
-                        : STAGE_COLORS[currentStage].dot.includes('amber') ? '#f59e0b'
-                        : STAGE_COLORS[currentStage].dot.includes('pink') ? '#ec4899'
-                        : STAGE_COLORS[currentStage].dot.includes('green') ? '#22c55e'
-                        : '#ef4444',
-                    }}
-                  />
+                {(() => {
+                  const stageIcons: Record<string, React.ReactNode> = {
+                    'Discovery':     <Search className="w-4 h-4 text-white" />,
+                    'Qualification': <Star className="w-4 h-4 text-white" />,
+                    'Demo':          <MonitorPlay className="w-4 h-4 text-white" />,
+                    'Proposal':      <FileCheck2 className="w-4 h-4 text-white" />,
+                    'Negotiation':   <Handshake className="w-4 h-4 text-white" />,
+                  }
+                  const progIdx = PROGRESSION_STAGES.indexOf(currentStage as any)
+                  const currentProgIdx = progIdx >= 0 ? progIdx : (isTerminalStage(currentStage) ? PROGRESSION_STAGES.length : 0)
+                  const segments = PROGRESSION_STAGES.length - 1
+                  const fillPercent = isTerminalStage(currentStage)
+                    ? 100
+                    : (currentProgIdx / segments) * 100
 
-                  {/* Stage nodes */}
-                  <div className="relative flex justify-between">
-                    {PROGRESSION_STAGES.map((stage) => {
-                      const stageIdx = STAGE_ORDER.indexOf(stage)
-                      const currentIdx = STAGE_ORDER.indexOf(currentStage)
-                      const isPast = !isTerminalStage(currentStage) && currentIdx > stageIdx
-                      const isCurrent = currentStage === stage
-                      const colors = STAGE_COLORS[stage]
+                  return (
+                    <div className="relative">
+                      {/* Track — anchored to center of first and last node */}
+                      <div
+                        className="absolute top-5 -translate-y-1/2 h-[3px]"
+                        style={{ left: 28, right: 28 }}
+                      >
+                        {/* Background track */}
+                        <div className="h-full bg-gray-100 rounded-full w-full" />
+                        {/* Filled track */}
+                        <div
+                          className="h-full rounded-full absolute top-0 left-0 transition-all duration-700 ease-out"
+                          style={{
+                            width: `${fillPercent}%`,
+                            background: isTerminalStage(currentStage)
+                              ? (currentStage === 'Closed Won'
+                                ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)'
+                                : 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)')
+                              : 'linear-gradient(90deg, #22c55e 0%, #22c55e 60%, #86efac 100%)',
+                          }}
+                        />
+                      </div>
 
-                      return (
-                        <div key={stage} className="flex flex-col items-center gap-1.5 relative z-10">
-                          <div className={cn(
-                            'w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300',
-                            isCurrent && cn('ring-4 ring-offset-2', colors.dot, colors.border.replace('border', 'ring')),
-                            isPast && 'bg-gray-300',
-                            !isCurrent && !isPast && 'bg-white border-2 border-gray-200',
-                            isCurrent && colors.dot,
-                          )}>
-                            {isPast && <CheckCircle2 className="w-4 h-4 text-white" />}
-                            {isCurrent && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
-                          </div>
-                          <span className={cn(
-                            'text-[11px] font-medium whitespace-nowrap',
-                            isCurrent ? cn(colors.text, 'font-semibold') : isPast ? 'text-gray-400' : 'text-gray-300',
-                          )}>
-                            {stage}
-                          </span>
-                          {isCurrent && daysInStage !== undefined && (
-                            <span className="text-[10px] text-gray-400">{daysInStage}d</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                      {/* Stage nodes — flush to edges */}
+                      <div className="relative flex justify-between">
+                        {PROGRESSION_STAGES.map((stage, idx) => {
+                          const isPast = currentProgIdx > idx || isTerminalStage(currentStage)
+                          const isCurrent = currentStage === stage
+                          const colors = STAGE_COLORS[stage]
+
+                          return (
+                            <div key={stage} className="flex flex-col items-center relative z-10">
+                              {/* Node */}
+                              <div className={cn(
+                                'w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500',
+                                isCurrent && 'ring-[3px] ring-offset-2 shadow-lg',
+                                isCurrent && (colors.dot === 'bg-indigo-500' ? 'ring-indigo-300 bg-indigo-500'
+                                  : colors.dot === 'bg-blue-500' ? 'ring-blue-300 bg-blue-500'
+                                  : colors.dot === 'bg-cyan-500' ? 'ring-cyan-300 bg-cyan-500'
+                                  : colors.dot === 'bg-amber-500' ? 'ring-amber-300 bg-amber-500'
+                                  : 'ring-pink-300 bg-pink-500'),
+                                isPast && !isCurrent && 'bg-emerald-500 shadow-sm shadow-emerald-200',
+                                !isCurrent && !isPast && 'bg-gray-50 border-2 border-gray-200',
+                              )}>
+                                {isPast && !isCurrent && stageIcons[stage]}
+                                {isCurrent && <div className="w-3 h-3 rounded-full bg-white shadow-inner" />}
+                                {!isCurrent && !isPast && (
+                                  <div className="w-2 h-2 rounded-full bg-gray-200" />
+                                )}
+                              </div>
+                              {/* Label */}
+                              <span className={cn(
+                                'text-[11px] mt-2 whitespace-nowrap text-center',
+                                isCurrent ? cn('font-bold', colors.text) : isPast ? 'font-medium text-emerald-600' : 'font-medium text-gray-300',
+                              )}>
+                                {stage}
+                              </span>
+                              {/* Days indicator */}
+                              {isCurrent && daysInStage !== undefined && (
+                                <span className="text-[10px] text-gray-400 mt-0.5">{daysInStage}d</span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Terminal badge if applicable */}
                 {isTerminalStage(currentStage) && (
@@ -610,20 +721,44 @@ export default function DealDetailPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {daysInStage !== undefined && (
-                          <div className={cn(
-                            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold',
-                            isOverdue
-                              ? 'bg-red-100 text-red-700 border border-red-200'
-                              : 'bg-white/70 text-gray-600 border border-gray-200',
-                          )}>
-                            <Clock className="w-3 h-3" />
-                            {daysInStage}d / {config.typical_duration_days || '\u221e'}d
+                          <div className="relative group/days">
+                            <div className={cn(
+                              'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-help',
+                              isOverdue
+                                ? 'bg-red-100 text-red-700 border border-red-200'
+                                : 'bg-white/70 text-gray-600 border border-gray-200',
+                            )}>
+                              <Clock className="w-3 h-3" />
+                              {daysInStage}d / {config.typical_duration_days || '\u221e'}d
+                            </div>
+                            <div className="pointer-events-none absolute top-full right-0 mt-2 w-52 opacity-0 translate-y-1 group-hover/days:opacity-100 group-hover/days:translate-y-0 transition-all duration-200 z-50">
+                              <div className="bg-white rounded-xl border border-gray-200 shadow-lg px-3.5 py-2.5">
+                                <p className="text-[11px] font-semibold text-gray-700 mb-1">Stage Duration</p>
+                                <p className="text-[10.5px] text-gray-500 leading-relaxed">
+                                  {daysInStage} day{daysInStage !== 1 ? 's' : ''} in {currentStage}.
+                                  {config.typical_duration_days
+                                    ? ` Typical: ${config.typical_duration_days} days.`
+                                    : ''}
+                                  {isOverdue && <span className="text-red-500 font-medium"> Overdue.</span>}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
                         {config.ai_win_prob_floor !== undefined && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/70 text-gray-600 border border-gray-200 text-[11px] font-semibold">
-                            <TrendingUp className="w-3 h-3" />
-                            {config.ai_win_prob_floor}%–{config.ai_win_prob_ceiling}%
+                          <div className="relative group/prob">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/70 text-gray-600 border border-gray-200 text-[11px] font-semibold cursor-help">
+                              <TrendingUp className="w-3 h-3" />
+                              {config.ai_win_prob_floor}%–{config.ai_win_prob_ceiling}%
+                            </div>
+                            <div className="pointer-events-none absolute top-full right-0 mt-2 w-56 opacity-0 translate-y-1 group-hover/prob:opacity-100 group-hover/prob:translate-y-0 transition-all duration-200 z-50">
+                              <div className="bg-white rounded-xl border border-gray-200 shadow-lg px-3.5 py-2.5">
+                                <p className="text-[11px] font-semibold text-gray-700 mb-1">Win Probability Range</p>
+                                <p className="text-[10.5px] text-gray-500 leading-relaxed">
+                                  Deals at {currentStage} typically close at {config.ai_win_prob_floor}%–{config.ai_win_prob_ceiling}% probability based on historical data.
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -633,25 +768,8 @@ export default function DealDetailPage() {
                     <div className="px-5 py-4 bg-white">
                       <p className="text-[12px] text-gray-600 leading-relaxed mb-4">{config.description}</p>
 
-                      {/* Exit criteria checklist */}
-                      {config.exit_criteria?.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-1.5 mb-2.5">
-                            <Shield className="w-3.5 h-3.5 text-gray-400" />
-                            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">
-                              Exit Criteria
-                            </p>
-                          </div>
-                          <div className="grid gap-1.5">
-                            {config.exit_criteria.map((criterion: string, i: number) => (
-                              <div key={i} className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
-                                <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0 mt-0.5" />
-                                <span className="text-[12px] text-gray-600 leading-snug">{criterion}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* Exit criteria checklist — interactive */}
+                      <ExitCriteriaChecklist dealId={deal.id} stage={currentStage} />
                     </div>
                   </div>
                 )
@@ -773,6 +891,11 @@ export default function DealDetailPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Journey Report */}
+          {rightTab === 'journey' && (
+            <JourneyReportPanel dealId={id} />
           )}
         </div>
       </div>

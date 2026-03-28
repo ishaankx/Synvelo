@@ -48,7 +48,9 @@ export const dealsApi = {
     owner: string
     time_to_close_days?: number | null
   }) => api.post('/deals/', d),
-  delete:       (id: string)            => api.delete(`/deals/${id}`),   // ← added
+  delete:       (id: string)            => api.delete(`/deals/${id}`),
+  update:       (id: string, fields: { value?: number; company?: string; owner?: string; time_to_close_days?: number }) =>
+                  api.patch(`/deals/${id}`, fields),
   score:        (id: string)            => api.post(`/deals/${id}/score`),
   ask:          (id: string, q: string) => api.post(`/deals/${id}/ask`, { query: q }),
   brief:        (id: string)            => api.post(`/deals/${id}/brief`),
@@ -61,6 +63,12 @@ export const dealsApi = {
                      api.patch(`/deals/${id}/stage`, { to_stage: toStage, reason, triggered_by: triggeredBy }),
   stageHistory:    (id: string)           => api.get(`/deals/${id}/stage/history`),
   pipelineOverview: ()                    => api.get('/deals/pipeline/overview'),
+  // Exit criteria
+  exitCriteria:       (id: string)         => api.get(`/deals/${id}/exit-criteria`),
+  toggleCriterion:    (id: string, cid: string) => api.patch(`/deals/${id}/exit-criteria/${cid}`),
+  addCriterion:       (id: string, text: string, stage?: string) =>
+                        api.post(`/deals/${id}/exit-criteria`, { criterion_text: text, stage }),
+  deleteCriterion:    (id: string, cid: string) => api.delete(`/deals/${id}/exit-criteria/${cid}`),
 }
 
 export const ingestApi = {
@@ -106,6 +114,10 @@ export const reportsApi = {
   all:         ()                 => api.get('/reports/all'),
   download:    (reportId: string) => api.get(`/reports/download/${reportId}`, { responseType: 'blob' }),
   delete:      (reportId: string) => api.delete(`/reports/${reportId}`),
+  // Journey Report (Type 2)
+  generateJourney:  (dealId: string)   => api.post(`/reports/journey/${dealId}/generate`),
+  listJourney:      (dealId: string)   => api.get(`/reports/journey/${dealId}/list`),
+  viewJourney:      (reportId: string) => api.get(`/reports/journey/${reportId}/view`),
 }
 
 export const nexusApi = {
@@ -123,6 +135,20 @@ export const nexusApi = {
                       simulation_id: simId, deal_id: dealId, artifact_types: types,
                     }),
   artifacts:      (dealId: string)       => api.get(`/api/nexus/artifacts/${dealId}`),
+}
+
+export const activityApi = {
+  list: (params?: {
+    event_type?: string
+    entity_type?: string
+    entity_id?: string
+    search?: string
+    date_from?: string
+    date_to?: string
+    limit?: number
+    offset?: number
+  }) => api.get('/activity/', { params }),
+  eventTypes: () => api.get('/activity/event-types'),
 }
 
 export default api

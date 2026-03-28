@@ -147,19 +147,22 @@ async def score_deal(deal_id: str, db: AsyncSession) -> dict:
         "id":      deal_id,
     })
 
-    # Append to score_history
+    # Append to score_history (with stage fields for NEXUS ML consumption)
     await db.execute(text("""
         INSERT INTO score_history
             (id, deal_id, win_probability, probability_low, probability_high,
-             sentiment_avg, trigger_type, scored_at)
+             sentiment_avg, trigger_type, scored_at, deal_stage, stage_health)
         VALUES
-            (gen_random_uuid(), CAST(:id AS uuid), :prob, :low, :high, :sent, 'manual_score', NOW())
+            (gen_random_uuid(), CAST(:id AS uuid), :prob, :low, :high,
+             :sent, 'manual_score', NOW(), :deal_stage, :stage_health)
     """), {
-        "id":   deal_id,
-        "prob": result.get("win_probability"),
-        "low":  result.get("probability_low"),
-        "high": result.get("probability_high"),
-        "sent": sentiment_avg,
+        "id":           deal_id,
+        "prob":         result.get("win_probability"),
+        "low":          result.get("probability_low"),
+        "high":         result.get("probability_high"),
+        "sent":         sentiment_avg,
+        "deal_stage":   deal_stage,
+        "stage_health": result.get("stage_health"),
     })
 
     await db.commit()

@@ -20,6 +20,9 @@ STEPS = [
     ("deals · brief_generated_at","ALTER TABLE deals ADD COLUMN IF NOT EXISTS brief_generated_at TIMESTAMP"),
     ("deals · last_scored_at",   "ALTER TABLE deals ADD COLUMN IF NOT EXISTS last_scored_at TIMESTAMP"),
 
+    # ── Deals table: currency ──────────────────────────────────────────
+    ("deals · currency",           "ALTER TABLE deals ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'USD'"),
+
     # ── Documents table: sentiment ───────────────────────────────────
     ("documents · sentiment_score", "ALTER TABLE documents ADD COLUMN IF NOT EXISTS sentiment_score FLOAT"),
     ("documents · sentiment_label", "ALTER TABLE documents ADD COLUMN IF NOT EXISTS sentiment_label VARCHAR(20)"),

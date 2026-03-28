@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { dealsApi } from '@/lib/api'
 import {
@@ -7,7 +7,8 @@ import {
   getNextStage, isTerminal,
 } from '@/lib/stage-utils'
 import {
-  ChevronRight, CheckCircle, AlertCircle, Clock, ArrowRight,
+  CheckCircle, AlertCircle, Clock, ArrowRight,
+  Trophy, XCircle, ArrowDownUp, ChevronDown,
 } from 'lucide-react'
 
 interface StageAdvancePanelProps {
@@ -34,12 +35,25 @@ export default function StageAdvancePanel({
   const [reason, setReason] = useState('')
   const [showReasonField, setShowReasonField] = useState(false)
   const [pendingStage, setPendingStage] = useState<StageKey | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const currentStage = deal.stage
   const currentConfig = stageConfigs[currentStage]
   const nextStage = getNextStage(currentStage)
   const colors = STAGE_COLORS[currentStage]
   const isTerminalStage = isTerminal(currentStage)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [dropdownOpen])
 
   async function performTransition(toStage: StageKey, transitionReason?: string) {
     setIsLoading(true)
@@ -54,6 +68,7 @@ export default function StageAdvancePanel({
       setShowManualOverride(false)
       setShowReasonField(false)
       setPendingStage(null)
+      setDropdownOpen(false)
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to update stage.')
     } finally {
@@ -64,8 +79,7 @@ export default function StageAdvancePanel({
   function handleAdvanceClick() {
     if (!nextStage) return
     setPendingStage(nextStage)
-    setShowReasonField(false)
-    performTransition(nextStage)
+    setShowReasonField(true)
   }
 
   function handleTerminalClick(stage: 'Closed Won' | 'Closed Lost') {
@@ -73,15 +87,12 @@ export default function StageAdvancePanel({
     setShowReasonField(true)
   }
 
-  function handleManualSelect(e: React.ChangeEvent<HTMLSelectElement>) {
-    const val = e.target.value as StageKey
-    setSelectedManualStage(val)
-    const selectedOrder = STAGE_ORDER.indexOf(val)
-    const currentOrder = STAGE_ORDER.indexOf(currentStage)
-    if (selectedOrder < currentOrder) {
-      setShowReasonField(true)
-      setPendingStage(val)
-    }
+  function handleStageSelect(stage: StageKey) {
+    setSelectedManualStage(stage)
+    setDropdownOpen(false)
+    // All dropdown selections require a reason — either backward or forward skip
+    setShowReasonField(true)
+    setPendingStage(stage)
   }
 
   function handleConfirmWithReason() {
@@ -112,6 +123,10 @@ export default function StageAdvancePanel({
     )
   }
 
+  const availableStages = STAGE_ORDER.filter(
+    s => s !== currentStage && s !== nextStage && s !== 'Closed Won' && s !== 'Closed Lost',
+  )
+
   return (
     <div className="space-y-4">
       {/* Current stage info — hidden when parent already shows it */}
@@ -135,76 +150,175 @@ export default function StageAdvancePanel({
             )}
           </div>
           <p className="text-xs text-gray-600 mb-3">{currentConfig?.description}</p>
-
-          {currentConfig?.exit_criteria?.length > 0 && (
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-medium mb-1.5">
-                Exit criteria for this stage
-              </p>
-              <ul className="space-y-1">
-                {currentConfig.exit_criteria.map((criterion, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-gray-500">
-                    <span className="mt-0.5 text-gray-300">&#9675;</span>
-                    {criterion}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Advance to next stage */}
-      {nextStage && !isTerminal(nextStage) && (
-        <button
-          onClick={handleAdvanceClick}
-          disabled={isLoading}
-          className={cn(
-            'w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all',
-            'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
+      {/* ── Two-column layout: Advance + Terminal (left) | Manual Override (right) ── */}
+      <div className="flex gap-3">
+        {/* LEFT — Advance + Won/Lost */}
+        <div className="flex-1 flex flex-col gap-2.5">
+          {/* Advance button — solid indigo */}
+          {nextStage && !isTerminal(nextStage) && (
+            <button
+              onClick={handleAdvanceClick}
+              disabled={isLoading}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-semibold text-[13px] text-white transition-all',
+                'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800',
+                'shadow-sm hover:shadow-md',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+              )}
+            >
+              <span>Advance to {nextStage}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           )}
-        >
-          <span>Advance to {nextStage}</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      )}
 
-      {/* Negotiation -> Closed Won */}
-      {nextStage === 'Closed Won' && (
-        <button
-          onClick={() => handleTerminalClick('Closed Won')}
-          disabled={isLoading}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50"
-        >
-          <span>Mark as Closed Won</span>
-          <CheckCircle className="w-4 h-4" />
-        </button>
-      )}
-
-      {/* Terminal actions */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => handleTerminalClick('Closed Won')}
-          disabled={isLoading || nextStage === 'Closed Won'}
-          className={cn(
-            'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-all',
-            'border-green-200 text-green-700 bg-white hover:bg-green-50',
-            'disabled:opacity-30 disabled:cursor-not-allowed',
+          {/* Negotiation -> Closed Won (primary advance) */}
+          {nextStage === 'Closed Won' && (
+            <button
+              onClick={() => handleTerminalClick('Closed Won')}
+              disabled={isLoading}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-semibold text-[13px] text-white transition-all',
+                'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800',
+                'shadow-sm hover:shadow-md',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+              )}
+            >
+              <span>Mark as Closed Won</span>
+              <Trophy className="w-4 h-4" />
+            </button>
           )}
-        >
-          Won
-        </button>
-        <button
-          onClick={() => handleTerminalClick('Closed Lost')}
-          disabled={isLoading}
-          className="flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-all border-red-200 text-red-600 bg-white hover:bg-red-50 disabled:opacity-50"
-        >
-          Lost
-        </button>
+
+          {/* Won / Lost row */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleTerminalClick('Closed Won')}
+              disabled={isLoading || nextStage === 'Closed Won'}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-[12px] font-semibold transition-all',
+                'border-green-200 text-green-700 bg-white hover:bg-green-50',
+                'disabled:opacity-30 disabled:cursor-not-allowed',
+              )}
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              Won
+            </button>
+            <button
+              onClick={() => handleTerminalClick('Closed Lost')}
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-[12px] font-semibold transition-all border-red-200 text-red-600 bg-white hover:bg-red-50 disabled:opacity-50"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              Lost
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT — Manual Override (zero layout shift) */}
+        <div ref={dropdownRef} className="flex-1 relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className={cn(
+              'w-full h-full flex items-center gap-3 rounded-xl border bg-white px-4 text-left transition-all',
+              dropdownOpen ? 'border-indigo-300 shadow-md' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm',
+            )}
+          >
+            <div className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors',
+              dropdownOpen ? 'bg-indigo-100' : 'bg-indigo-50',
+            )}>
+              <ArrowDownUp className="w-4 h-4 text-indigo-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              {selectedManualStage ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className={cn('w-2 h-2 rounded-full', STAGE_COLORS[selectedManualStage as StageKey]?.dot)} />
+                    <span className="text-[13px] font-semibold text-gray-700">{selectedManualStage}</span>
+                  </div>
+                  <span
+                    role="link"
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedManualStage(''); setDropdownOpen(false) }}
+                    className="text-[11px] text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                  >
+                    Cancel selection
+                  </span>
+                </>
+              ) : (
+                <>
+                  <p className="text-[12px] font-semibold text-gray-700">Change Stage</p>
+                  <p className="text-[11px] text-gray-400">Jump to any stage manually</p>
+                </>
+              )}
+            </div>
+            {selectedManualStage && (() => {
+              const selIdx = STAGE_ORDER.indexOf(selectedManualStage as StageKey)
+              const curIdx = STAGE_ORDER.indexOf(currentStage)
+              const isBack = selIdx < curIdx
+              return (
+                <span className={cn(
+                  'text-[9px] uppercase tracking-wider font-semibold px-2 py-1 rounded-md flex-shrink-0',
+                  isBack ? 'text-amber-600 bg-amber-50' : 'text-indigo-600 bg-indigo-50',
+                )}>
+                  {isBack ? 'back' : 'forward'}
+                </span>
+              )
+            })()}
+            <ChevronDown className={cn(
+              'w-4 h-4 text-gray-400 transition-transform flex-shrink-0',
+              dropdownOpen && 'rotate-180 text-indigo-500',
+            )} />
+          </button>
+
+          {/* Dropdown — absolute overlay, zero layout impact */}
+          {dropdownOpen && (
+            <div className="absolute z-50 mt-1.5 left-0 right-0 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 overflow-hidden">
+              {availableStages.map((stage) => {
+                const sc = STAGE_COLORS[stage]
+                const stageIdx = STAGE_ORDER.indexOf(stage)
+                const currentIdx = STAGE_ORDER.indexOf(currentStage)
+                const isBack = stageIdx < currentIdx
+                const isForward = stageIdx > currentIdx
+
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => handleStageSelect(stage)}
+                    className={cn(
+                      'w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[12px] transition-colors',
+                      'hover:bg-gray-50',
+                      selectedManualStage === stage && 'bg-indigo-50',
+                    )}
+                  >
+                    <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', sc.dot)} />
+                    <span className="font-medium text-gray-700 flex-1">{stage}</span>
+                    {isBack && (
+                      <span className="text-[9px] uppercase tracking-wider text-amber-500 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">back</span>
+                    )}
+                    {isForward && (
+                      <span className="text-[9px] uppercase tracking-wider text-indigo-500 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded">forward</span>
+                    )}
+                  </button>
+                )
+              })}
+
+              {/* Cancel */}
+              <div className="px-3 pt-1 pb-1.5 border-t border-gray-100 mt-0.5">
+                <button
+                  onClick={() => { setDropdownOpen(false); setSelectedManualStage('') }}
+                  className="w-full py-1.5 text-[12px] text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Reason input */}
+      {/* Reason input — full width below */}
       {showReasonField && pendingStage && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
           <p className="text-xs font-medium text-gray-600">
@@ -212,7 +326,11 @@ export default function StageAdvancePanel({
               ? 'Why was this deal lost? (recommended for pipeline analytics)'
               : pendingStage === 'Closed Won'
                 ? 'Any notes for the win? (optional)'
-                : 'Why is this deal moving back? (required)'}
+                : pendingStage === nextStage
+                  ? 'Add a note for this transition (optional)'
+                  : STAGE_ORDER.indexOf(pendingStage) > STAGE_ORDER.indexOf(currentStage)
+                    ? 'Why is this deal skipping stages? (required for pipeline analytics)'
+                    : 'Why is this deal moving back? (required)'}
           </p>
           <textarea
             value={reason}
@@ -220,7 +338,11 @@ export default function StageAdvancePanel({
             placeholder={
               pendingStage === 'Closed Lost'
                 ? 'e.g. Budget frozen for Q3, re-evaluate Q4...'
-                : 'Optional note...'
+                : pendingStage === 'Closed Won'
+                  ? 'e.g. Contract signed, onboarding scheduled...'
+                  : pendingStage === nextStage
+                    ? 'e.g. Demo went well, stakeholders aligned...'
+                    : 'e.g. Champion fast-tracked decision, skipped formal RFP...'
             }
             className="w-full text-xs border border-gray-200 rounded-lg p-2.5 resize-none h-16 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
           />
@@ -239,39 +361,6 @@ export default function StageAdvancePanel({
               Cancel
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Manual override */}
-      <button
-        onClick={() => setShowManualOverride(!showManualOverride)}
-        className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
-      >
-        <ChevronRight className={cn('w-3 h-3 transition-transform', showManualOverride && 'rotate-90')} />
-        Jump to any stage manually
-      </button>
-
-      {showManualOverride && (
-        <div className="space-y-2">
-          <select
-            value={selectedManualStage}
-            onChange={handleManualSelect}
-            className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
-          >
-            <option value="">Select a stage...</option>
-            {STAGE_ORDER.filter(s => s !== currentStage).map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          {selectedManualStage && !showReasonField && (
-            <button
-              onClick={() => performTransition(selectedManualStage as StageKey, reason || undefined)}
-              disabled={isLoading}
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 text-white text-xs font-medium hover:bg-gray-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Moving...' : `Move to ${selectedManualStage}`}
-            </button>
-          )}
         </div>
       )}
 

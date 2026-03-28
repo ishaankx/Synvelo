@@ -10,6 +10,7 @@ import {
   Clock, Loader2, ChevronRight, Users, Zap,
 } from 'lucide-react'
 import { analyticsApi } from '@/lib/api'
+import { fmtMoney as fmtCurrency } from '@/lib/currency'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -96,9 +97,7 @@ const KPI_BORDER_COLORS: Record<string, string> = {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000)     return `$${(n / 1_000).toFixed(0)}K`
-  return `$${n}`
+  return fmtCurrency(n)
 }
 
 function fmtActivity(trigger: string) {

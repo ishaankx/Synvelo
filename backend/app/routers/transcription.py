@@ -10,6 +10,7 @@ from app.database import get_db, AsyncSessionLocal
 from app.services.transcription_service import transcribe_audio_file, download_and_transcribe_url
 from app.dependencies import get_org_id
 from app.config import settings
+from app.services.activity_service import log_activity
 
 router = APIRouter(prefix="/transcribe", tags=["transcription"])
 UPLOAD_DIR = Path(settings.UPLOAD_DIR)
@@ -82,6 +83,13 @@ async def upload_and_transcribe(
         call_title, platform, attendees, docid
     )
 
+    await log_activity(
+        org_id=org_id, event_type="transcription_uploaded", entity_type="transcription",
+        entity_id=tid, entity_name=call_title or file.filename or "call_recording",
+        new_value={"platform": platform, "call_title": call_title},
+        metadata={"deal_id": deal_id, "deal_name": deal.name},
+    )
+
     return {
         "transcription_id": tid,
         "status":           "pending",
@@ -130,6 +138,13 @@ async def transcribe_from_url(
     bg.add_task(
         _bg_url, req.url, req.deal_id, tid, deal.name,
         req.call_title, req.platform, req.attendees, docid
+    )
+
+    await log_activity(
+        org_id=org_id, event_type="transcription_from_url", entity_type="transcription",
+        entity_id=tid, entity_name=req.call_title or f"{req.platform}_recording",
+        new_value={"platform": req.platform, "url": req.url[:200]},
+        metadata={"deal_id": req.deal_id, "deal_name": deal.name},
     )
 
     return {"transcription_id": tid, "status": "pending"}

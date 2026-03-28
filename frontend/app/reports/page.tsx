@@ -13,6 +13,7 @@ interface Report {
   win_probability: number | null
   filename: string
   page_count: number
+  report_type: string
   created_at: string
 }
 
@@ -54,6 +55,7 @@ export default function ReportsPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [showDealPicker, setShowDealPicker] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<'all' | 'intelligence' | 'journey'>('all')
 
   const load = async () => {
     setLoading(true)
@@ -120,15 +122,35 @@ export default function ReportsPage() {
   }
 
   const dealsWithReports = new Set(reports.map(r => r.deal_id))
+  const filteredReports = typeFilter === 'all'
+    ? reports
+    : reports.filter(r => (r.report_type || 'intelligence') === typeFilter)
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
 
       {/* Header */}
       <div className="h-16 border-b syn-border px-6 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="text-[18px] font-semibold syn-text-primary">Deal Intelligence Reports</h1>
-          <p className="text-[12px] syn-text-secondary">{reports.length} report{reports.length !== 1 ? 's' : ''} generated</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-[18px] font-semibold syn-text-primary">Reports</h1>
+            <p className="text-[12px] syn-text-secondary">{filteredReports.length} of {reports.length} report{reports.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex items-center gap-1 ml-4">
+            {(['all', 'intelligence', 'journey'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={`px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
+                  typeFilter === t
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'syn-text-tertiary hover:text-gray-700'
+                }`}
+              >
+                {t === 'all' ? 'All' : t === 'intelligence' ? 'Deal Intelligence' : 'Journey'}
+              </button>
+            ))}
+          </div>
         </div>
         <button
           onClick={() => setShowDealPicker(true)}
@@ -177,7 +199,7 @@ export default function ReportsPage() {
           <div className="flex items-center justify-center h-40">
             <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
           </div>
-        ) : reports.length === 0 ? (
+        ) : filteredReports.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 text-center">
             <div className="w-14 h-14 rounded-xl syn-surface-2 border syn-border flex items-center justify-center mb-4">
               <FileText className="w-7 h-7 text-brand-700" />
@@ -196,7 +218,7 @@ export default function ReportsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {reports.map(report => (
+            {filteredReports.map(report => (
               <div
                 key={report.report_id}
                 className="syn-card p-5 hover:border-gray-300 transition-colors"
@@ -211,6 +233,13 @@ export default function ReportsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2.5 mb-1 flex-wrap">
                         <p className="text-[14px] font-medium text-gray-900 truncate">{report.deal_name}</p>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 uppercase tracking-wider ${
+                          (report.report_type || 'intelligence') === 'journey'
+                            ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                            : 'bg-brand-50 text-brand-700 border border-brand-200'
+                        }`}>
+                          {(report.report_type || 'intelligence') === 'journey' ? 'Journey' : 'Intelligence'}
+                        </span>
                         {report.stage && (
                           <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md flex-shrink-0 ${(STAGE_COLOR as any)[report.stage] || 'bg-gray-100 text-gray-500'}`}>
                             {report.stage}

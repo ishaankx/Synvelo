@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutGrid, Zap, Mic, BarChart3,
-  FileText, LogOut, ChevronRight, Brain,
+  FileText, LogOut, ChevronRight, Brain, Activity,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,12 @@ const NAV_GROUPS = [
       { href: '/pulse',      icon: Zap,        label: 'Pulse Sync'  },
       { href: '/transcribe', icon: Mic,        label: 'Transcribe'  },
       { href: '/reports',    icon: FileText,   label: 'Reports'     },
+    ],
+  },
+  {
+    label: 'Monitoring',
+    items: [
+      { href: '/activity',   icon: Activity,   label: 'Activity'    },
     ],
   },
 ]

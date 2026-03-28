@@ -25,8 +25,9 @@ class DealCreate(BaseModel):
     company:            str = ""
     stage:              str = "Qualification"
     value:              float = 0.0
+    currency:           str = "USD"
     owner:              str = ""
-    time_to_close_days: Optional[int] = None   # ← added, was missing
+    time_to_close_days: Optional[int] = None
 
 
 class EvidenceSpan(BaseModel):

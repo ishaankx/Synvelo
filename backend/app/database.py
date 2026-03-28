@@ -30,6 +30,7 @@ class Deal(Base):
     company: Mapped[Optional[str]] = mapped_column(String(500))
     stage: Mapped[Optional[str]] = mapped_column(String(100), default="Qualification")
     value: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
     owner: Mapped[Optional[str]] = mapped_column(String(200))
     win_probability: Mapped[Optional[float]] = mapped_column(Float)
     probability_low: Mapped[Optional[float]] = mapped_column(Float)
@@ -50,6 +51,7 @@ class Deal(Base):
     score_history: Mapped[List["ScoreHistory"]] = relationship("ScoreHistory", back_populates="deal", lazy="select")
     transcriptions: Mapped[List["CallTranscription"]] = relationship("CallTranscription", back_populates="deal", lazy="select")
     stage_history: Mapped[List["DealStageHistory"]] = relationship("DealStageHistory", back_populates="deal", lazy="select")
+    exit_criteria: Mapped[List["DealExitCriteria"]] = relationship("DealExitCriteria", back_populates="deal", lazy="select")
 
 
 class Document(Base):
@@ -154,6 +156,7 @@ class DealReport(Base):
     org_id     = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
     filename   = mapped_column(String(500))
     page_count = mapped_column(Integer, default=0)
+    report_type = mapped_column(String(50), default="intelligence")
     report_json = mapped_column(JSON)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -174,6 +177,64 @@ class DealStageHistory(Base):
     org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
 
     deal: Mapped["Deal"] = relationship("Deal", back_populates="stage_history")
+
+
+class DealExitCriteria(Base):
+    __tablename__ = "deal_exit_criteria"
+
+    id = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    deal_id = mapped_column(UUID(as_uuid=False), ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    stage: Mapped[str] = mapped_column(String(100), nullable=False)
+    criterion_text: Mapped[str] = mapped_column(Text, nullable=False)
+    is_completed: Mapped[bool] = mapped_column(default=False)
+    is_custom: Mapped[bool] = mapped_column(default=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+
+    deal: Mapped["Deal"] = relationship("Deal", back_populates="exit_criteria")
+
+
+class DealFieldEdit(Base):
+    __tablename__ = "deal_field_edits"
+
+    id = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    deal_id = mapped_column(UUID(as_uuid=False), ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    field_name: Mapped[str] = mapped_column(Text, nullable=False)
+    old_value: Mapped[Optional[str]] = mapped_column(Text)
+    new_value: Mapped[Optional[str]] = mapped_column(Text)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(200))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+
+
+class DealAiUsageLog(Base):
+    __tablename__ = "deal_ai_usage_log"
+
+    id = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    deal_id = mapped_column(UUID(as_uuid=False), ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    feature_name: Mapped[str] = mapped_column(Text, nullable=False)
+    triggered_by: Mapped[Optional[str]] = mapped_column(String(200))
+    triggered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    result_summary: Mapped[Optional[dict]] = mapped_column(JSON)
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    actor_id: Mapped[Optional[str]] = mapped_column(String(200))
+    actor_name: Mapped[Optional[str]] = mapped_column(String(200))
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entity_id: Mapped[Optional[str]] = mapped_column(String(200))
+    entity_name: Mapped[Optional[str]] = mapped_column(String(500))
+    old_value: Mapped[Optional[dict]] = mapped_column(JSON)
+    new_value: Mapped[Optional[dict]] = mapped_column(JSON)
+    metadata_extra: Mapped[Optional[dict]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, index=True)
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
 
 
 async def init_db():
