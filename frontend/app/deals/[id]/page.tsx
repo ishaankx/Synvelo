@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils'
 import {
   ArrowLeft, RefreshCw, FileText, Mail, TrendingUp,
   AlertTriangle, Clock, Building2, DollarSign,
-  MessageSquare, Upload, Loader2, Send, CheckCircle2,
+  MessageSquare, Upload, Loader2, CheckCircle2,
   Target, Search, Star, MonitorPlay, FileCheck2, Handshake,
   Banknote, CalendarCheck, User, Pencil,
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { dealsApi, ingestApi } from '@/lib/api'
 import { fmtFullMoney, currencySymbol } from '@/lib/currency'
+import AskAITab from '@/components/AskAITab'
 import SignalCards, { Signal } from '@/components/SignalCards'
 import MEDDICPanel, { MEDDIC } from '@/components/MEDDICPanel'
 import DealHealthTimeline, { HistoryPoint } from '@/components/DealHealthTimeline'
@@ -257,9 +258,7 @@ export default function DealDetailPage() {
   const [genFollowup,     setGenFollowup]     = useState(false)
   const [followupData,    setFollowupData]    = useState<FollowupData | null>(null)
 
-  const [qaInput,   setQaInput]   = useState('')
-  const [qaHistory, setQaHistory] = useState<Array<{ q: string; a: string; sources: string[] }>>([])
-  const [qaLoading, setQaLoading] = useState(false)
+  // qa state removed — handled by AskAITab component
 
   // Stage pipeline state
   const [currentStage, setCurrentStage] = useState<StageKey>('Discovery')
@@ -323,15 +322,6 @@ export default function DealDetailPage() {
       const res = await dealsApi.followup(id)
       setFollowupData(res.data)
     } finally { setGenFollowup(false) }
-  }
-
-  const handleQa = async () => {
-    if (!qaInput.trim()) return
-    const q = qaInput; setQaInput(''); setQaLoading(true)
-    try {
-      const res = await dealsApi.ask(id, q)
-      setQaHistory(h => [...h, { q, a: res.data.answer, sources: res.data.sources || [] }])
-    } finally { setQaLoading(false) }
   }
 
   const onDrop = useCallback(async (files: File[]) => {
@@ -822,75 +812,9 @@ export default function DealDetailPage() {
             </div>
           )}
 
-          {/* Q&A */}
+          {/* Q&A — powered by ReAct Agent */}
           {rightTab === 'qa' && (
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto syn-scroll p-5 space-y-4">
-                {qaHistory.length === 0 && (
-                  <div className="text-center py-12">
-                    <MessageSquare className="w-8 h-8 syn-text-muted mx-auto mb-3" />
-                    <p className="text-[13px] syn-text-tertiary mb-4">Ask anything about this deal</p>
-                    {[
-                      'Who is the decision maker?',
-                      'What objections were raised?',
-                      'What is the timeline?',
-                    ].map(q => (
-                      <button key={q} onClick={() => setQaInput(q)}
-                        className="block w-full text-left text-[12px] syn-text-tertiary hover:syn-text-secondary
-                                   syn-card px-3.5 py-2.5 mb-1.5 transition-colors">
-                        {q}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {qaHistory.map((item, i) => (
-                  <div key={i} className="space-y-3">
-                    <div className="flex justify-end">
-                      <div className="bg-brand-50 border border-brand-200 rounded-xl px-4 py-2.5 max-w-[85%]">
-                        <p className="text-[13px] text-brand-700">{item.q}</p>
-                      </div>
-                    </div>
-                    <div className="syn-surface-2 border syn-border rounded-xl p-4 max-w-[95%]">
-                      <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">{item.a}</p>
-                      {item.sources?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t syn-border">
-                          {item.sources.map((s, si) => (
-                            <span key={si} className="text-[11px] syn-text-tertiary syn-surface-3 px-2 py-0.5 rounded-md">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {qaLoading && (
-                  <div className="syn-surface-2 border syn-border rounded-xl p-3 w-14">
-                    <Loader2 className="w-4 h-4 syn-text-tertiary animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="p-4 border-t syn-border">
-                <div className="flex gap-2">
-                  <input
-                    value={qaInput}
-                    onChange={e => setQaInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleQa()}
-                    placeholder="Ask about this deal…"
-                    className="flex-1 syn-surface-2 border syn-border rounded-xl px-4 py-2.5
-                               text-[13px] syn-text-primary placeholder:syn-text-muted
-                               focus:outline-none focus:border-brand-500/40 transition-colors"
-                  />
-                  <button onClick={handleQa} disabled={qaLoading || !qaInput.trim()}
-                    className="w-10 h-10 flex items-center justify-center bg-brand-600
-                               hover:bg-brand-500 disabled:opacity-40 rounded-xl transition-colors flex-shrink-0">
-                    <Send className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <AskAITab dealId={id} />
           )}
 
           {/* Journey Report */}

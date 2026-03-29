@@ -137,6 +137,40 @@ export const nexusApi = {
   artifacts:      (dealId: string)       => api.get(`/api/nexus/artifacts/${dealId}`),
 }
 
+export const askAiApi = {
+  /**
+   * Stream a ReAct-agent response via SSE (POST + ReadableStream).
+   * Returns a raw Response — caller reads the stream.
+   */
+  query: async (
+    dealId: string,
+    message: string,
+    conversationId?: string | null,
+  ): Promise<Response> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    } else {
+      headers['X-Org-ID'] = DEFAULT_ORG_ID
+    }
+    return fetch(`${API_BASE}/deals/${dealId}/ask-ai/query`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        message,
+        conversation_id: conversationId || undefined,
+      }),
+    })
+  },
+
+  conversations:     (dealId: string)             => api.get(`/deals/${dealId}/ask-ai/conversations`),
+  getConversation:   (dealId: string, convId: string) => api.get(`/deals/${dealId}/ask-ai/conversations/${convId}`),
+  deleteConversation:(dealId: string, convId: string) => api.delete(`/deals/${dealId}/ask-ai/conversations/${convId}`),
+  suggest:           (dealId: string)             => api.post(`/deals/${dealId}/ask-ai/suggest`),
+  graphStats:        (dealId: string)             => api.get(`/deals/${dealId}/ask-ai/graph/stats`),
+}
+
 export const activityApi = {
   list: (params?: {
     event_type?: string
