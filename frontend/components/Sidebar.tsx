@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutGrid, Zap, Mic, BarChart3,
-  FileText, LogOut, ChevronRight, Brain, Activity,
+  FileText, LogOut, ChevronRight, Brain, Activity, Settings,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -55,12 +55,12 @@ export default function Sidebar() {
          style={{ backgroundColor: '#1e1b4b' }}>
 
       {/* Logo — large and prominent */}
-      <div className="h-[72px] px-5 flex items-center gap-3 flex-shrink-0 border-b border-white/[0.08]">
+      <div className="h-[72px] px-5 flex items-center gap-1 flex-shrink-0 border-b border-white/[0.08]">
         <Image
           src="/SynveloLogo_v1.png"
           alt="Synvelo"
-          width={44}
-          height={44}
+          width={50}
+          height={50}
           className="flex-shrink-0"
         />
         <span className="text-[18px] font-bold text-white tracking-tight">
@@ -105,8 +105,26 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Bottom — logout */}
-      <div className="px-3 pb-4 pt-2 border-t border-white/[0.08] flex-shrink-0">
+      {/* Bottom — settings + logout */}
+      <div className="px-3 pb-4 pt-2 border-t border-white/[0.08] flex-shrink-0 space-y-0.5">
+        <Link
+          href="/settings"
+          className={cn(
+            'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all group',
+            path.startsWith('/settings')
+              ? 'bg-white/[0.12] text-white'
+              : 'text-indigo-200/60 hover:text-white hover:bg-white/[0.06]',
+          )}
+        >
+          <Settings className={cn(
+            'w-[18px] h-[18px] flex-shrink-0',
+            path.startsWith('/settings') ? 'text-white' : 'text-indigo-300/50 group-hover:text-indigo-200',
+          )} />
+          <span className="flex-1">Settings</span>
+          {path.startsWith('/settings') && (
+            <ChevronRight className="w-3.5 h-3.5 text-white/50" />
+          )}
+        </Link>
         <button
           onClick={handleLogout}
           className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg
