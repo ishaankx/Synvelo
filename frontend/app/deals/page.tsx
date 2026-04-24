@@ -10,6 +10,8 @@ import { dealsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { type StageKey, STAGE_COLORS } from '@/lib/stage-utils'
 import { fmtMoney, fmtFullMoney, CURRENCIES } from '@/lib/currency'
+import { useCurrency } from '@/lib/currencyContext'
+import { isMultiCurrency } from '@/lib/exchangeRates'
 
 interface Deal {
   id: string
@@ -312,23 +314,29 @@ export default function DealsPage() {
     }
   }
 
-  // ── Computed values ──────────────────────────────────────────────────
+  const { consolidationCurrency, convert } = useCurrency()
 
-  const totalValue    = deals.reduce((s, d) => s + (d.value || 0), 0)
-  const weightedValue = deals.reduce((s, d) => s + (d.value || 0) * (d.win_probability || 0), 0)
+  // ── Computed values ──────────────────────────────────────────────────
+  // Convert each deal's value to the consolidation currency before summing
+  const totalValue = useMemo(
+    () => deals.reduce((s, d) => s + convert(d.value || 0, d.currency || 'USD', consolidationCurrency), 0),
+    [deals, consolidationCurrency, convert]
+  )
+  const weightedValue = useMemo(
+    () => deals.reduce((s, d) => s + convert((d.value || 0) * (d.win_probability || 0), d.currency || 'USD', consolidationCurrency), 0),
+    [deals, consolidationCurrency, convert]
+  )
   const scoredDeals   = deals.filter(d => d.win_probability !== null)
   const avgProb       = scoredDeals.length
     ? scoredDeals.reduce((s, d) => s + d.win_probability!, 0) / scoredDeals.length
     : null
   const weightedRatio = totalValue > 0 ? Math.round((weightedValue / totalValue) * 100) : 0
 
-  // Dominant currency for aggregated stats
-  const mainCurrency = useMemo(() => {
-    if (deals.length === 0) return 'USD'
-    const counts: Record<string, number> = {}
-    deals.forEach(d => { counts[d.currency || 'USD'] = (counts[d.currency || 'USD'] || 0) + 1 })
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
-  }, [deals])
+  // Whether we're mixing currencies (drives ≈ indicator in stat cards)
+  const multiCurrency = useMemo(
+    () => isMultiCurrency(deals.map(d => d.currency || 'USD')),
+    [deals]
+  )
 
   const activeDeals = deals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost')
   const closedDeals = deals.filter(d => d.stage === 'Closed Won' || d.stage === 'Closed Lost')
@@ -469,9 +477,14 @@ export default function DealsPage() {
               )}
             >
               <div className="flex items-center justify-between mb-1">
-                <p className="text-[11px] syn-text-muted uppercase tracking-widest font-semibold">
-                  Total Pipeline
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[11px] syn-text-muted uppercase tracking-widest font-semibold">
+                    Total Pipeline
+                  </p>
+                  {multiCurrency && (
+                    <span className="text-[10px] font-mono text-amber-600 bg-amber-50 border border-amber-200 px-1 rounded">≈</span>
+                  )}
+                </div>
                 <ChevronDown className={cn(
                   'w-3.5 h-3.5 syn-text-muted transition-transform duration-200',
                   expandedCard === 'pipeline' && 'rotate-180'
@@ -479,7 +492,7 @@ export default function DealsPage() {
               </div>
               <div className="flex items-baseline gap-2.5">
                 <p className="text-[26px] font-bold syn-text-primary tracking-tight">
-                  {fmtMoney(totalValue, mainCurrency)}
+                  {fmtMoney(totalValue, consolidationCurrency)}
                 </p>
                 {growth > 0 && (
                   <span className="flex items-center gap-0.5 text-[12px] font-semibold text-emerald-600">
@@ -510,8 +523,10 @@ export default function DealsPage() {
                     </div>
                   ))}
                   <div className="border-t syn-border mt-1 pt-2 px-3 pb-1 flex justify-between items-center">
-                    <span className="text-[11px] syn-text-tertiary font-medium uppercase tracking-wider">Total</span>
-                    <span className="text-[13px] font-bold syn-text-primary tabular-nums">{fmtMoney(totalValue, mainCurrency)}</span>
+                    <span className="text-[11px] syn-text-tertiary font-medium uppercase tracking-wider">
+                      Total {multiCurrency && <span className="font-mono text-amber-600">≈</span>}
+                    </span>
+                    <span className="text-[13px] font-bold syn-text-primary tabular-nums">{fmtMoney(totalValue, consolidationCurrency)}</span>
                   </div>
                 </div>
               </div>
@@ -529,9 +544,14 @@ export default function DealsPage() {
               )}
             >
               <div className="flex items-center justify-between mb-1">
-                <p className="text-[11px] syn-text-muted uppercase tracking-widest font-semibold">
-                  Weighted Value
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[11px] syn-text-muted uppercase tracking-widest font-semibold">
+                    Weighted Value
+                  </p>
+                  {multiCurrency && (
+                    <span className="text-[10px] font-mono text-amber-600 bg-amber-50 border border-amber-200 px-1 rounded">≈</span>
+                  )}
+                </div>
                 <ChevronDown className={cn(
                   'w-3.5 h-3.5 syn-text-muted transition-transform duration-200',
                   expandedCard === 'weighted' && 'rotate-180'
@@ -539,7 +559,7 @@ export default function DealsPage() {
               </div>
               <div className="flex items-baseline gap-2.5">
                 <p className="text-[26px] font-bold syn-text-primary tracking-tight">
-                  {fmtMoney(weightedValue, mainCurrency)}
+                  {fmtMoney(weightedValue, consolidationCurrency)}
                 </p>
                 <span className="text-[12px] syn-text-muted font-medium">
                   {weightedRatio}% ratio
@@ -573,8 +593,10 @@ export default function DealsPage() {
                     )
                   })}
                   <div className="border-t syn-border mt-1 pt-2 px-3 pb-1 flex justify-between items-center">
-                    <span className="text-[11px] syn-text-tertiary font-medium uppercase tracking-wider">Total</span>
-                    <span className="text-[13px] font-bold syn-text-primary tabular-nums">{fmtMoney(weightedValue, mainCurrency)}</span>
+                    <span className="text-[11px] syn-text-tertiary font-medium uppercase tracking-wider">
+                      Total {multiCurrency && <span className="font-mono text-amber-600">≈</span>}
+                    </span>
+                    <span className="text-[13px] font-bold syn-text-primary tabular-nums">{fmtMoney(weightedValue, consolidationCurrency)}</span>
                   </div>
                 </div>
               </div>

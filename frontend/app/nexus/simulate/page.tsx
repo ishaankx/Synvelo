@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { dealsApi, nexusApi } from '@/lib/api'
+import { fmtMoney } from '@/lib/currency'
 import {
   FlaskConical, Loader2, ArrowLeft, ChevronRight,
   TrendingUp, DollarSign, Zap, CheckCircle2, Shield,
@@ -10,7 +11,7 @@ import {
 
 interface Deal {
   id: string; name: string; company: string; stage: string; value: number
-  win_probability: number | null
+  currency: string; win_probability: number | null
 }
 
 interface Scenario {
@@ -30,18 +31,19 @@ interface SimResult {
   model_version: number; run_duration_ms: number
 }
 
-function fmt(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
-  return `$${n.toFixed(0)}`
-}
-
 export default function SimulatePage() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [selectedDeal, setSelectedDeal] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [simulating, setSimulating] = useState(false)
   const [result, setResult] = useState<SimResult | null>(null)
+
+  const dealCurrency = useMemo(
+    () => deals.find(d => d.id === selectedDeal)?.currency || 'USD',
+    [deals, selectedDeal]
+  )
+
+  const fmt = (n: number) => fmtMoney(n, dealCurrency)
 
   useEffect(() => {
     dealsApi.list().then(r => {
@@ -96,7 +98,7 @@ export default function SimulatePage() {
               <option value="">Choose a deal…</option>
               {deals.map(d => (
                 <option key={d.id} value={d.id}>
-                  {d.name} — {d.company} ({d.stage}) · {fmt(d.value)}
+                  {d.name} — {d.company} ({d.stage}) · {fmtMoney(d.value, d.currency)}
                 </option>
               ))}
             </select>

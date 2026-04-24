@@ -6,11 +6,27 @@ import { Loader2 } from 'lucide-react'
 
 const PUBLIC_PATHS = ['/login']
 const MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000 // 24 hours
+const AUTH_TIMEOUT_MS    = 4000                 // fail fast if Supabase is unreachable
 
 function isSessionExpired(session: { user: { last_sign_in_at?: string } }): boolean {
   const signedInAt = session.user.last_sign_in_at
   if (!signedInAt) return true
   return Date.now() - new Date(signedInAt).getTime() > MAX_SESSION_AGE_MS
+}
+
+/**
+ * Race getSession against a timeout so the UI is never blocked
+ * for more than AUTH_TIMEOUT_MS when Supabase is slow/unreachable.
+ */
+async function getSessionWithTimeout() {
+  const timeout = new Promise<null>(resolve =>
+    setTimeout(() => resolve(null), AUTH_TIMEOUT_MS),
+  )
+  const sessionPromise = supabase.auth.getSession()
+    .then(({ data: { session } }) => session)
+    .catch(() => null)
+
+  return Promise.race([sessionPromise, timeout])
 }
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -20,12 +36,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [authed,   setAuthed]   = useState(false)
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Check initial session — with a timeout so we never block the UI
+    getSessionWithTimeout().then(async (session) => {
       const isPublic = PUBLIC_PATHS.includes(pathname)
 
       if (session && isSessionExpired(session)) {
-        await supabase.auth.signOut()
+        try { await supabase.auth.signOut() } catch {}
         router.replace('/login')
         setChecking(false)
         return
@@ -42,7 +58,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     })
 
     // Listen for auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _session) => {
       if (event === 'SIGNED_OUT') {
         router.replace('/login')
       }

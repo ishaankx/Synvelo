@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
@@ -9,10 +9,18 @@ import {
   TrendingUp, DollarSign, Building2,
   Clock, Loader2, ChevronRight, Users, Zap,
 } from 'lucide-react'
-import { analyticsApi } from '@/lib/api'
+import { analyticsApi, dealsApi } from '@/lib/api'
 import { fmtMoney as fmtCurrency } from '@/lib/currency'
+import { useCurrency } from '@/lib/currencyContext'
+import { isMultiCurrency } from '@/lib/exchangeRates'
 
 // ── Types ──────────────────────────────────────────────────────────────────
+
+interface RawDeal {
+  id: string; name: string; company: string; stage: string
+  value: number; currency: string; owner: string
+  win_probability: number | null
+}
 
 interface SignalDeal {
   id: string; name: string; company: string; stage: string
@@ -96,10 +104,6 @@ const KPI_BORDER_COLORS: Record<string, string> = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function fmt(n: number) {
-  return fmtCurrency(n)
-}
-
 function fmtActivity(trigger: string) {
   return ({
     manual_score:       'Scored',
@@ -122,19 +126,6 @@ function KpiCard({
       </div>
       <p className="text-[24px] font-bold text-gray-900 leading-none">{value}</p>
       {sub && <p className="text-[11px] syn-text-tertiary mt-1.5">{sub}</p>}
-    </div>
-  )
-}
-
-const CustomBarTip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null
-  const d = payload[0].payload
-  return (
-    <div className="bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2.5 text-[11px]">
-      <p className="text-gray-900 font-semibold mb-1">{d.stage}</p>
-      <p className="text-gray-500">{d.count} deal{d.count !== 1 ? 's' : ''}</p>
-      <p className="text-brand-600">{fmt(d.value)}</p>
-      <p className="text-emerald-600">Avg: {d.avg_prob}%</p>
     </div>
   )
 }
@@ -164,17 +155,89 @@ function SignalBar({ red, yellow, green }: { red: number; yellow: number; green:
 type DashTab = 'pipeline' | 'signals' | 'owners'
 
 export default function AnalyticsPage() {
-  const [data,    setData]    = useState<Summary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(false)
-  const [tab,     setTab]     = useState<DashTab>('pipeline')
+  const [data,      setData]      = useState<Summary | null>(null)
+  const [rawDeals,  setRawDeals]  = useState<RawDeal[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(false)
+  const [tab,       setTab]       = useState<DashTab>('pipeline')
+
+  const { consolidationCurrency, convert } = useCurrency()
 
   useEffect(() => {
-    analyticsApi.summary()
-      .then(r => setData(r.data))
+    Promise.all([
+      analyticsApi.summary(),
+      dealsApi.list({ limit: 200 } as any),
+    ])
+      .then(([aRes, dRes]) => {
+        setData(aRes.data)
+        setRawDeals(dRes.data || [])
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
+
+  // ── Currency-aware computed values from raw deals ──────────────────────
+
+  const dealMap = useMemo(() => {
+    const m = new Map<string, RawDeal>()
+    rawDeals.forEach(d => m.set(d.id, d))
+    return m
+  }, [rawDeals])
+
+  const multiCurrency = useMemo(
+    () => isMultiCurrency(rawDeals.map(d => d.currency || 'USD')),
+    [rawDeals]
+  )
+
+  const fmt = (n: number) => fmtCurrency(n, consolidationCurrency)
+
+  const convertedTotal = useMemo(
+    () => rawDeals.reduce((s, d) => s + convert(d.value || 0, d.currency || 'USD', consolidationCurrency), 0),
+    [rawDeals, consolidationCurrency, convert]
+  )
+
+  const convertedWeighted = useMemo(
+    () => rawDeals
+      .filter(d => d.win_probability !== null)
+      .reduce((s, d) => s + convert((d.value || 0) * d.win_probability!, d.currency || 'USD', consolidationCurrency), 0),
+    [rawDeals, consolidationCurrency, convert]
+  )
+
+  // Per-stage sums (converted)
+  const stageValues = useMemo(() => {
+    const m: Record<string, number> = {}
+    rawDeals.forEach(d => {
+      const v = convert(d.value || 0, d.currency || 'USD', consolidationCurrency)
+      m[d.stage] = (m[d.stage] || 0) + v
+    })
+    return m
+  }, [rawDeals, consolidationCurrency, convert])
+
+  // Per-owner sums (converted)
+  const ownerValues = useMemo(() => {
+    const m: Record<string, number> = {}
+    rawDeals.forEach(d => {
+      const v = convert(d.value || 0, d.currency || 'USD', consolidationCurrency)
+      m[d.owner || ''] = (m[d.owner || ''] || 0) + v
+    })
+    return m
+  }, [rawDeals, consolidationCurrency, convert])
+
+  // Bar chart tooltip (uses converted stage values)
+  const CustomBarTip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    return (
+      <div className="bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2.5 text-[11px]">
+        <p className="text-gray-900 font-semibold mb-1">{d.stage}</p>
+        <p className="text-gray-500">{d.count} deal{d.count !== 1 ? 's' : ''}</p>
+        <p className="text-brand-600">{fmt(stageValues[d.stage] || 0)}{multiCurrency ? ' ≈' : ''}</p>
+        <p className="text-emerald-600">Avg: {d.avg_prob}%</p>
+      </div>
+    )
+  }
+
+  // ── Loading / error states ─────────────────────────────────────────────
 
   if (loading) return (
     <div className="flex-1 flex items-center justify-center h-screen syn-bg">
@@ -202,14 +265,28 @@ export default function AnalyticsPage() {
       fill:  FUNNEL_COLORS[s.stage] || '#6366f1',
     }))
 
+  const weightedRatioPct = convertedTotal > 0
+    ? Math.round((convertedWeighted / convertedTotal) * 100)
+    : 0
+
   return (
     <div className="flex flex-col h-full syn-bg">
 
       {/* Page header */}
       <div className="h-16 border-b syn-border px-6 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="text-[18px] font-semibold syn-text-primary">Analytics</h1>
-          <p className="text-[12px] text-gray-500">Pipeline intelligence dashboard</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-[18px] font-semibold syn-text-primary">Analytics</h1>
+            <p className="text-[12px] text-gray-500">Pipeline intelligence dashboard</p>
+          </div>
+          {/* Consolidation currency badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200">
+            <span className="text-[11px] text-gray-500">Values in</span>
+            <span className="text-[11px] font-bold text-gray-700">{consolidationCurrency}</span>
+            {multiCurrency && (
+              <span className="text-[10px] font-mono text-amber-600 bg-amber-50 border border-amber-200 px-1 rounded">≈</span>
+            )}
+          </div>
         </div>
         <div className="flex gap-1">
           {([
@@ -236,9 +313,9 @@ export default function AnalyticsPage() {
 
         {/* KPI cards — always visible */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          <KpiCard label="Total Pipeline"    value={fmt(data.total_pipeline_value)}    icon={DollarSign}    accent="bg-brand-500/10 text-brand-400" />
-          <KpiCard label="Weighted Pipeline" value={fmt(data.weighted_pipeline_value)} icon={TrendingUp}    accent="bg-violet-500/10 text-violet-400"
-            sub={`${Math.round(data.weighted_pipeline_value / Math.max(data.total_pipeline_value, 1) * 100)}% of total`} />
+          <KpiCard label="Total Pipeline"    value={fmt(convertedTotal)}    icon={DollarSign}    accent="bg-brand-500/10 text-brand-400" />
+          <KpiCard label="Weighted Pipeline" value={fmt(convertedWeighted)} icon={TrendingUp}    accent="bg-violet-500/10 text-violet-400"
+            sub={`${weightedRatioPct}% of total`} />
           <KpiCard label="Avg Win Prob"      value={`${Math.round(data.avg_win_probability)}%`}  icon={TrendingUp}    accent="bg-emerald-500/10 text-emerald-400" />
           <KpiCard label="Total Deals"       value={String(data.total_deals)}          icon={Building2}    accent="bg-slate-700/60 text-slate-400"
             sub={`${data.unscored_count} unscored`} />
@@ -358,6 +435,9 @@ export default function AnalyticsPage() {
                   <div className="divide-y divide-gray-100">
                     {data.at_risk_deals.map(d => {
                       const pct = d.win_probability !== null ? Math.round(d.win_probability * 100) : null
+                      // Use native currency from dealMap for individual deal display
+                      const dealCurrency = dealMap.get(d.id)?.currency || 'USD'
+                      const convertedValue = convert(d.value, dealCurrency, consolidationCurrency)
                       return (
                         <Link key={d.id} href={`/deals/${d.id}`}
                           className="flex items-center gap-3 px-6 py-3.5 hover:bg-gray-50 transition-colors group">
@@ -368,7 +448,9 @@ export default function AnalyticsPage() {
                             <p className="text-[11px] syn-text-tertiary truncate mt-0.5">{d.top_risk}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-[13px] font-semibold syn-text-secondary">{fmt(d.value)}</p>
+                            <p className="text-[13px] font-semibold syn-text-secondary">
+                              {fmt(convertedValue)}{multiCurrency && dealCurrency !== consolidationCurrency ? ' ≈' : ''}
+                            </p>
                             <p className={cn(
                               'text-[11px] font-bold',
                               pct === null ? 'syn-text-muted' : pct < 25 ? 'text-red-600' : 'text-amber-600'
@@ -470,6 +552,8 @@ export default function AnalyticsPage() {
               <div className="divide-y divide-gray-200">
                 {data.signal_overview.map(d => {
                   const pct = d.win_probability !== null ? Math.round(d.win_probability * 100) : null
+                  const dealCurrency = dealMap.get(d.id)?.currency || 'USD'
+                  const convertedValue = convert(d.value, dealCurrency, consolidationCurrency)
                   return (
                     <Link key={d.id} href={`/deals/${d.id}`}
                       className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition-colors group">
@@ -505,8 +589,10 @@ export default function AnalyticsPage() {
                       <SignalBar red={d.red} yellow={d.yellow} green={d.green} />
 
                       {/* Value + prob */}
-                      <div className="text-right flex-shrink-0 w-16">
-                        <p className="text-[13px] font-semibold syn-text-secondary">{fmt(d.value)}</p>
+                      <div className="text-right flex-shrink-0 w-20">
+                        <p className="text-[13px] font-semibold syn-text-secondary">
+                          {fmt(convertedValue)}{multiCurrency && dealCurrency !== consolidationCurrency ? '≈' : ''}
+                        </p>
                         <p className={cn(
                           'text-[11px] font-bold',
                           pct === null ? 'syn-text-muted' : pct >= 65 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-600' : 'text-red-600'
@@ -561,7 +647,9 @@ export default function AnalyticsPage() {
                         <p className="text-[13px] font-medium text-gray-800 truncate">{o.owner}</p>
                       </div>
                       <p className="text-[13px] syn-text-secondary text-right">{o.deal_count}</p>
-                      <p className="text-[13px] text-gray-700 font-semibold text-right">{fmt(o.value)}</p>
+                      <p className="text-[13px] text-gray-700 font-semibold text-right">
+                        {fmt(ownerValues[o.owner] || 0)}{multiCurrency ? '≈' : ''}
+                      </p>
                       <p className={cn(
                         'text-[13px] font-bold text-right',
                         o.avg_prob >= 65 ? 'text-emerald-600' : o.avg_prob >= 40 ? 'text-amber-600' : 'text-red-600'
