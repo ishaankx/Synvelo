@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     Promise.all([
       analyticsApi.summary(),
-      dealsApi.list({ limit: 200 } as any),
+      dealsApi.list({ limit: 200 }),
     ])
       .then(([aRes, dRes]) => {
         setData(aRes.data)
