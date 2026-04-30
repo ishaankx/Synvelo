@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: ankane/pgvector:latest
@@ -12,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U synvelo"]
+      test: ["CMD-SHELL", "pg_isready -U synvelo -d synvelo_db"]
       interval: 5s
       timeout: 5s
       retries: 5

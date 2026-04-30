@@ -38,7 +38,7 @@ api.interceptors.response.use(
 )
 
 export const dealsApi = {
-  list:         ()                      => api.get('/deals/'),
+  list:         (params?: { limit?: number; offset?: number }) => api.get('/deals/', { params }),
   get:          (id: string)            => api.get(`/deals/${id}`),
   create:       (d: {
     name: string
@@ -106,6 +106,11 @@ export const pulseApi = {
 
 export const analyticsApi = {
   summary: () => api.get('/analytics/summary'),
+  usage:   (month?: string) => api.get('/analytics/usage', { params: month ? { month } : {} }),
+}
+
+export const organisationsApi = {
+  get: (orgId: string) => api.get(`/organisations/${orgId}`),
 }
 
 export const reportsApi = {

@@ -1,6 +1,6 @@
 # CLAUDE.md — Synvelo Codebase Intelligence
 
-> Last generated: 2026-03-29
+> Last generated: 2026-03-29 (initial), updated 2026-04-30 (settings hub redesign + live FX + collapsible sidebar)
 > This file is the single source of truth for understanding the Synvelo codebase.
 > Read this BEFORE writing any code.
 
@@ -57,6 +57,7 @@ The backend is a FastAPI monolith. There is no message queue; background work ru
 | NEXUS — Scenario Simulation | `/nexus/simulate` page | `POST /api/nexus/simulate` | `simulator.py` |
 | NEXUS — Execution Artifacts | `/nexus/artifacts` page | `POST /api/nexus/artifacts/generate` | `artifact_generator.py` |
 | Organisation Management | — | `POST /v1/organisations/` | — |
+| Settings Hub (8 sub-pages) | `/settings/*` (left-rail shell) | mostly client-side + `/health`, `/analytics/usage`, `/organisations/{id}` | `userPrefs.ts`, `currencyContext.tsx` |
 
 ---
 
@@ -236,7 +237,7 @@ API docs available at `http://localhost:8001/docs` (dev only; hidden in producti
 │       └── prompts.py                 # WIN_DNA_NARRATIVE_PROMPT
 ├── frontend/
 │   ├── app/
-│   │   ├── layout.tsx                 # Root layout — wraps everything in AuthGuard + Sidebar
+│   │   ├── layout.tsx                 # Root layout — wraps everything in ClientProviders + AuthGuard + Sidebar
 │   │   ├── page.tsx                   # Root redirect (→ /deals)
 │   │   ├── globals.css                # Tailwind base + syn-* utility classes
 │   │   ├── login/page.tsx             # Login page (Supabase magic link / email+password)
@@ -252,10 +253,22 @@ API docs available at `http://localhost:8001/docs` (dev only; hidden in producti
 │   │   ├── pulse/page.tsx             # Pulse Sync ERP chat
 │   │   ├── reports/page.tsx           # All reports list + download
 │   │   ├── transcribe/page.tsx        # Transcription upload page
-│   │   └── activity/page.tsx          # Activity log feed
+│   │   ├── activity/page.tsx          # Activity log feed
+│   │   └── settings/                  # Settings hub with left-rail shell
+│   │       ├── layout.tsx             # Settings shell — left rail nav + content panel
+│   │       ├── page.tsx               # Redirects to /settings/profile
+│   │       ├── profile/page.tsx       # Display name (editable), email, IDs, sign-in history
+│   │       ├── security/page.tsx      # Session age, password reset, sign-out
+│   │       ├── workspace/page.tsx     # Org details, plan badge, support contact
+│   │       ├── usage/page.tsx         # Monthly AI usage + rate-limit reference
+│   │       ├── currency/page.tsx      # Consolidation currency + live ECB FX rates
+│   │       ├── notifications/page.tsx # Browser permission + alert toggles
+│   │       ├── appearance/page.tsx    # Theme (light only), density, UI toggles
+│   │       └── integrations/page.tsx  # External service connection status
 │   ├── components/
-│   │   ├── AuthGuard.tsx              # Session guard — redirects unauthenticated users
-│   │   ├── Sidebar.tsx                # Left navigation sidebar
+│   │   ├── AuthGuard.tsx              # Session guard with 4s timeout fallback
+│   │   ├── ClientProviders.tsx        # 'use client' wrapper hosting CurrencyProvider
+│   │   ├── Sidebar.tsx                # Left navigation sidebar (with Settings link)
 │   │   ├── AskAITab.tsx               # SSE streaming chat UI for ARIA
 │   │   ├── SignalCards.tsx            # Red/yellow/green signal display
 │   │   ├── MEDDICPanel.tsx            # 6-dimension MEDDIC qualification view
@@ -267,18 +280,23 @@ API docs available at `http://localhost:8001/docs` (dev only; hidden in producti
 │   │   ├── UploadZone.tsx             # Document drag-and-drop upload
 │   │   ├── EvidencePanel.tsx          # RAG evidence display
 │   │   ├── PulseSyncChat.tsx          # ERP chat interface
-│   │   ├── ScoreGauge.tsx             # SVG semicircle probability gauge
+│   │   ├── ScoreGauge.tsx             # SVG arc probability gauge (dark theme)
 │   │   ├── StageAdvancePanel.tsx      # Stage transition buttons + confirmation
 │   │   ├── StageHistoryTimeline.tsx   # Vertical timeline of stage changes
 │   │   ├── StagePipelineBar.tsx       # Horizontal pipeline progress bar
 │   │   ├── ExitCriteriaChecklist.tsx  # Stage exit criteria checkboxes
 │   │   ├── JourneyReportPanel.tsx     # Journey report generation + list
-│   │   └── DealCard.tsx               # Deal summary card (used in list)
+│   │   ├── DealCard.tsx               # Deal summary card (used in list)
+│   │   ├── SettingsHeader.tsx         # h1 + subtitle block for /settings/* pages
+│   │   └── SettingsSection.tsx        # Reusable titled card section primitive
 │   ├── lib/
 │   │   ├── api.ts                     # All API wrappers (axios instance + typed calls)
 │   │   ├── supabase.ts                # Supabase client (auth only)
 │   │   ├── stage-utils.ts             # Stage types, colors, order, transitions
 │   │   ├── currency.ts                # Multi-currency formatting (8 currencies)
+│   │   ├── exchangeRates.ts           # fetchLiveRates() (Frankfurter API) + 24h cache + convertCurrency
+│   │   ├── currencyContext.tsx        # CurrencyProvider with consolidationCurrency + live rates + convert()
+│   │   ├── userPrefs.ts               # useUserPrefs() — localStorage prefs (notifications, density, etc.)
 │   │   └── utils.ts                   # cn() class merger utility
 │   ├── next.config.ts                 # Minimal config (no rewrites)
 │   └── tsconfig.json                  # @/* → ./* path alias
@@ -3959,4 +3977,177 @@ Corrections to earlier sections discovered during session 2026-03-29:
 | §7.2 ScoreGauge | "SVG semicircle, viewBox 0 0 200 110, radius 80, center (100,100)" | Arc gauge, viewBox "0 0 140 100", radius 54, center (70,70), dark theme |
 | §6.12 Activity | `deal_ask_ai_v2` event type used by ask-ai router | Fixed to `deal_ask_ai` as of 2026-03-29 (router: `deal_ask_ai.py` line ~292) |
 | §21.1 Deals | ScoreGauge described as inline in deals page | ScoreGauge is imported from `@/components/ScoreGauge` |
+
+---
+
+## 39. APRIL 2026 CHANGES — MULTI-CURRENCY, LIVE FX, SETTINGS HUB
+
+### 39.1 Multi-Currency Consolidation
+
+**Problem solved**: Aggregate views (Total Pipeline, Weighted Pipeline, Analytics totals, NEXUS simulation EVs) were summing raw `value` columns across mixed-currency deals, producing meaningless totals when an org had USD + EUR + INR deals.
+
+**Solution**: A user-selectable "consolidation currency" (default USD). Individual deal values still display in their native currency. Aggregates convert each deal to the consolidation currency before summing.
+
+**Implementation**:
+
+| File | Role |
+|---|---|
+| `frontend/lib/exchangeRates.ts` | `RATES_FROM_USD` static fallback; `fetchLiveRates()` (Frankfurter API + 24h localStorage cache); `convertCurrency(amount, from, to, rates?)`; `isMultiCurrency()`; `getCachedRatesTimestamp()` |
+| `frontend/lib/currencyContext.tsx` | `CurrencyProvider` — exposes `consolidationCurrency`, `setConsolidationCurrency`, `exchangeRates`, `ratesLastUpdated`, `ratesFetching`, `convert(a, f, t)` (useCallback bound to live rates), `refreshRates()` |
+| `frontend/components/ClientProviders.tsx` | Thin `'use client'` wrapper hosting `CurrencyProvider` (required because `app/layout.tsx` is a server component that exports `metadata`) |
+
+**Pages updated to use `convert()` from context** (instead of static `convertCurrency`):
+- `app/deals/page.tsx` — `totalValue`, `weightedValue` aggregates with `≈` indicator when `multiCurrency`
+- `app/analytics/page.tsx` — fetches `dealsApi.list({ limit: 200 })` in parallel with summary, builds a `dealMap` for currency cross-reference, computes `convertedTotal`, `convertedWeighted`, `stageValues`, `ownerValues`. Header shows "Values in {CURRENCY} ≈" badge when multi-currency
+- `app/nexus/simulate/page.tsx` — uses each *selected deal's native currency* (not the consolidation currency), since simulation outputs represent a single deal's projections
+
+**Pulse Sync exception**: ERP mock inventory is hardcoded in USD. No conversion is applied. The Settings page surfaces this as an amber warning.
+
+**dealsApi.list signature change**: Now `(params?: { limit?: number; offset?: number })` — previously `()` only. Required by analytics fetching.
+
+### 39.2 Live FX Rates (Frankfurter API)
+
+**Source**: `https://api.frankfurter.app/latest?base=USD` — free, no API key, CORS-enabled, ECB data, updates daily on business days.
+
+**Cache strategy**:
+- localStorage key: `synvelo_exchange_rates_v1`
+- Stored as `{ rates: Record<string, number>, fetchedAt: number }`
+- TTL: 24 hours. Stale or missing → network fetch.
+- Network failure → silent fallback to static `RATES_FROM_USD`.
+
+**Fetch lifecycle** (in `CurrencyProvider`):
+1. On mount: `getCachedRatesTimestamp()` initialises `ratesLastUpdated` immediately so UI doesn't flash "loading"
+2. Calls `fetchLiveRates()` (which respects cache)
+3. Updates `exchangeRates` state → triggers re-render of all pages using `convert()`
+4. `refreshRates()` deletes the cache entry then re-fetches (forces network call)
+
+**Note**: Frankfurter response omits USD (it's the base), so the fetcher prepends `{ USD: 1.0, ...data.rates }` before storing.
+
+### 39.3 Settings Hub Redesign
+
+The previous flat 8-card grid landing page was replaced with a multi-page settings shell. Pattern: Linear / GitHub / Stripe.
+
+**Shell layout** (`app/settings/layout.tsx`):
+- 240px left rail (sub-sidebar inside the global sidebar's content area), grouped as:
+  - **Account**: Profile, Security & Privacy
+  - **Workspace**: Workspace, AI Usage
+  - **Preferences**: Currency, Notifications, Appearance
+  - **Advanced**: Integrations
+- Right content panel (max-w-3xl, mx-auto, px-10 py-10)
+- Active state: `pathname === item.href || pathname.startsWith(item.href + '/')`
+
+**Sub-page anatomy**:
+- `<SettingsHeader title description />` — h1 (22px) + subtitle + bottom border
+- One or more `<SettingsSection title? description? children />` — optional title above a bordered white card
+- Cards inside use `divide-y divide-gray-100` for clean row separation
+
+**Sub-page contents** (concrete data only — no placeholders that don't actually do anything):
+
+| Route | What it shows | What it writes |
+|---|---|---|
+| `/settings/profile` | Editable display name, read-only email, user ID, org ID, account-created and last-sign-in timestamps | `supabase.auth.updateUser({ data: { full_name } })` |
+| `/settings/security` | Session age (hours since last sign-in), auth provider, password reset email button, data/privacy notice, sign-out | `supabase.auth.resetPasswordForEmail()` and `signOut()` |
+| `/settings/workspace` | Gradient avatar (first letter of org name), org name, slug, plan badge, org details rows, support `mailto:` link | Read-only (no PATCH endpoint exists for orgs) |
+| `/settings/usage` | Hero: total AI calls this month. Per-feature horizontal bars. Rate-limit reference table | Read-only — calls `analyticsApi.usage()` |
+| `/settings/currency` | 8-currency picker grid, live rates table, last-updated relative time, refresh button, Pulse-USD-only warning | Updates context state |
+| `/settings/notifications` | Browser permission state with status badge, three toggles (at-risk / score-change / stage-transition) | localStorage via `useUserPrefs()` |
+| `/settings/appearance` | Theme picker (Light selected; Dark + Auto disabled with "Coming soon"), density chips, UI element toggles | localStorage via `useUserPrefs()` |
+| `/settings/integrations` | Three grouped sections (Core infra, AI & auth, External data) with status badges per service | Read-only — calls `/health` |
+
+**Honesty notes (visible in UI)**:
+- Theme dark/auto chips are disabled (clearly labeled "Coming soon")
+- Density toggle persists but is not yet read by consuming components
+- Notification toggles persist but the trigger logic is not yet wired
+- Pulse Sync ERP card shows "Mock" status with roadmap note
+- Workspace renaming/plan changes route to `mailto:support@synvelo.com`
+
+### 39.4 Settings-Related Components & Hooks
+
+| File | Purpose |
+|---|---|
+| `frontend/components/SettingsHeader.tsx` | Page-level title + description + bottom border. Replaces the previous icon-square header |
+| `frontend/components/SettingsSection.tsx` | Reusable titled card section (`{title?, description?, children, className?}`) |
+| `frontend/lib/userPrefs.ts` | `useUserPrefs()` hook — reads/writes `synvelo_user_prefs_v1` localStorage key with `UserPrefs` interface (notifications, density, showWelcomeBanner, autoSuggestQuestions) |
+
+### 39.5 New API Helpers
+
+Added to `frontend/lib/api.ts`:
+```typescript
+analyticsApi.usage(month?: string)   // GET /v1/analytics/usage  (Redis-backed AI call counts)
+organisationsApi.get(orgId: string)  // GET /v1/organisations/{id}
+```
+
+Updated:
+```typescript
+dealsApi.list(params?: { limit?: number; offset?: number })  // was: ()
+```
+
+### 39.6 AuthGuard Timeout Fix
+
+**Problem**: When Supabase Auth was slow/unreachable, `supabase.auth.getSession()` would internally retry multiple times, blocking the entire UI for 10–30 seconds with a blank loading spinner.
+
+**Fix** (`frontend/components/AuthGuard.tsx`):
+```typescript
+const AUTH_TIMEOUT_MS = 4000
+
+async function getSessionWithTimeout() {
+  const timeout = new Promise<null>(resolve =>
+    setTimeout(() => resolve(null), AUTH_TIMEOUT_MS),
+  )
+  const sessionPromise = supabase.auth.getSession()
+    .then(({ data: { session } }) => session)
+    .catch(() => null)
+  return Promise.race([sessionPromise, timeout])
+}
+```
+
+If Supabase is unreachable, the user is treated as unauthenticated after 4 seconds and redirected to `/login` rather than blocked indefinitely.
+
+**Note**: The Supabase SDK still logs `TypeError: Failed to fetch` and `AuthRetryableFetchError` to the console from its own internal background tasks (`_initialize`, `_recoverAndRefresh`, `_emitInitialSession`) when the project is unreachable. These are harmless and outside our control. The most common root cause is a paused free-tier Supabase project — check the dashboard.
+
+### 39.7 docker-compose Cleanup
+
+Two cosmetic fixes:
+- Removed obsolete `version: '3.8'` (Compose v2 ignores it and warns)
+- Healthcheck updated to `pg_isready -U synvelo -d synvelo_db` (was missing `-d`, which caused spurious `FATAL: database "synvelo" does not exist` log lines because `pg_isready` defaulted to a database matching the username)
+
+### 39.8 Sidebar — Settings Link
+
+`frontend/components/Sidebar.tsx`: A Settings link is rendered in the bottom-left section of the sidebar, immediately above Sign Out. Active state matches `pathname.startsWith('/settings')`.
+
+### 39.9 Sidebar Collapse / Expand (April 30)
+
+The global sidebar (`frontend/components/Sidebar.tsx`) is now collapsible. Pattern: Linear / VSCode primary side bar.
+
+**Widths** (animated via `transition-[width] duration-300 ease-in-out`):
+- Expanded: `240px` (constant `SIDEBAR_W_OPEN`)
+- Collapsed: `72px` (constant `SIDEBAR_W_CLOSED`)
+
+**State**:
+- React `useState` named `collapsed` — persisted to `localStorage('synvelo_sidebar_collapsed')` as `'1'` or `'0'`
+- An `hydrated` flag plus `invisible` class on first render prevents flash-of-wrong-state before localStorage is read
+
+**Toggle controls (two entry points)**:
+- **Chevron button** — only visible when expanded. White `ChevronLeft` icon (`w-4 h-4`) inside a 28×28 `text-white/70 hover:bg-white/10` button at the right of the header. Fades out with `opacity-0 scale-90 w-0 pointer-events-none` when collapsed.
+- **Logo button** — when collapsed, the entire logo container is wrapped in a `<button>` that toggles. Hover gives `opacity-80`, active gives `scale-95`. When expanded the button is `disabled` with `cursor-default` so the brand mark is static.
+
+**Logo policy**:
+- Logo image (`/SynveloLogo_v1.png`) stays at **50×50 in both states** — never resized
+- "Synvelo" wordmark fades via `max-w-[140px] → max-w-0` + `opacity-100 → opacity-0` + `ml-1 → ml-0` (300ms)
+
+**Nav item layout (NavLink)**:
+- `w-full h-10 flex items-center rounded-lg`
+- Expanded: `gap-2.5 px-3` — icon then label
+- Collapsed: `justify-center px-0` — icon centered in the column. Label gets `max-w-0 opacity-0` (animated 200ms) so it never affects layout
+- `title={label}` attribute when collapsed for native browser tooltips
+- Group labels (`INTELLIGENCE`, `SIMULATION`, etc.) collapse via `h-0 mb-0 opacity-0`
+
+**Active state indicator**:
+- A 3px wide × 20px tall `bg-indigo-400 rounded-r-full` strip anchored at the sidebar's left edge (positioned `absolute -left-2` to escape the parent column's `px-2`)
+- Plus a subtle `bg-white/[0.10]` pill on the link itself
+- Both visible in both states
+
+**Sign-out button** mirrors the same expanded/collapsed layout pattern as `NavLink`.
+
+**Layout impact**: The main content area (`<main>` in `app/layout.tsx`) is `flex-1` so it automatically reflows when the sidebar width changes. No content-side changes were needed.
 
