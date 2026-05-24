@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_org_id
+from app.roles import require_role
 from app.services.activity_service import log_activity
 
 from .schemas import (
@@ -131,7 +132,7 @@ async def extract_features(
     return {"feature_id": feature_id, "deal_id": payload.deal_id}
 
 
-@nexus_router.post("/extract-all")
+@nexus_router.post("/extract-all", dependencies=[Depends(require_role("admin", "owner"))])
 async def extract_all_features(
     db: AsyncSession = Depends(get_db),
     org_id: str = Depends(get_org_id),
@@ -171,7 +172,7 @@ async def extract_all_features(
 # MODEL TRAINING (Layer 2)
 # ═══════════════════════════════════════════════════════════════════════
 
-@nexus_router.post("/train")
+@nexus_router.post("/train", dependencies=[Depends(require_role("admin", "owner"))])
 async def train_nexus_model(
     payload: TrainModelRequest,
     background_tasks: BackgroundTasks,

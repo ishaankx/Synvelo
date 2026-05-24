@@ -13,6 +13,7 @@ from app.services.scoring import score_deal
 from app.services.rag import rag_answer
 from app.services.brief_service import generate_brief, generate_followup
 from app.dependencies import get_org_id
+from app.roles import require_role
 from app.rate_limit import limiter, AI_RATE, track_ai_usage
 from app.stages import STAGE_CONFIGS, STAGE_ORDER, TERMINAL_STAGES, can_transition, get_next_stage
 from app.services.activity_service import log_activity
@@ -259,7 +260,7 @@ async def get_deal(
     }
 
 
-@router.delete("/{deal_id}")
+@router.delete("/{deal_id}", dependencies=[Depends(require_role("admin", "owner"))])
 async def delete_deal(
     deal_id: str,
     db: AsyncSession = Depends(get_db),

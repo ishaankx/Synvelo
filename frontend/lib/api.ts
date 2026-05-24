@@ -1,26 +1,17 @@
 import axios from 'axios'
 import { supabase } from '@/lib/supabase'
 
-const API_BASE       = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 
 const api = axios.create({
   baseURL: API_BASE,
-  headers: {
-    'X-Org-ID': DEFAULT_ORG_ID,
-  },
 })
 
-// Interceptor: attach Supabase JWT on every request if user is logged in
+// Interceptor: attach Supabase JWT on every request. No fallback — auth is required.
 api.interceptors.request.use(async (config) => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) {
-      config.headers['Authorization'] = `Bearer ${session.access_token}`
-      delete config.headers['X-Org-ID']
-    }
-  } catch {
-    // No session — header fallback stays in place
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.access_token) {
+    config.headers['Authorization'] = `Bearer ${session.access_token}`
   }
   return config
 })
@@ -156,8 +147,6 @@ export const askAiApi = {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`
-    } else {
-      headers['X-Org-ID'] = DEFAULT_ORG_ID
     }
     return fetch(`${API_BASE}/deals/${dealId}/ask-ai/query`, {
       method: 'POST',

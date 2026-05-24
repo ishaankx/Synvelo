@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
-from sqlalchemy import String, Float, Integer, Text, DateTime, ForeignKey, JSON, UUID
+from sqlalchemy import String, Float, Integer, Text, DateTime, ForeignKey, JSON, UUID, UniqueConstraint
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from typing import Optional, List
@@ -235,6 +235,27 @@ class ActivityLog(Base):
     metadata_extra: Mapped[Optional[dict]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, index=True)
     org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+
+
+class UserRole(Base):
+    __tablename__ = "user_roles"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", name="uq_user_roles_org_user"),)
+
+    id = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class DealCollaborator(Base):
+    __tablename__ = "deal_collaborators"
+
+    deal_id = mapped_column(UUID(as_uuid=False), primary_key=True)
+    user_id: Mapped[str] = mapped_column(Text, primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    org_id = mapped_column(UUID(as_uuid=False), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 
 async def init_db():
