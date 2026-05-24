@@ -47,9 +47,11 @@ export default function LoginPage() {
         }
         const org = await res.json()
 
-        // Step 3: Write org_id into user metadata
+        // Step 3: Write org_id + role into user metadata.
+        // First user of a new org becomes owner. Subsequent users are
+        // invited and their role is assigned via the user_roles table.
         const { error: updateError } = await supabase.auth.updateUser({
-          data: { org_id: org.id, org_name: org.name }
+          data: { org_id: org.id, org_name: org.name, role: 'owner' }
         })
         if (updateError) throw updateError
 
